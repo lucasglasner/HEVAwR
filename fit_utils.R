@@ -45,7 +45,7 @@ emoms <- function(x, order, ...) {
 # Args: sample: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
-#               - "mme" Mmoment matching estimation
+#               - "mme" Moment matching estimation
 #               - "mle" Maximum likelihood estimation
 #               - Other methods available in fitdist.
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
@@ -76,7 +76,7 @@ fit_lognorm <- function(sample, ...) {
 # Args: sample: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
-#               - "mme" Mmoment matching estimation
+#               - "mme" Moment matching estimation
 #               - "mle" Maximum likelihood estimation
 #               - Other methods available in fitdist.
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
@@ -186,7 +186,7 @@ fpearson3 <- function(x) {
 # Args: sample: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
-#               - "mme" Mmoment matching estimation
+#               - "mme" Moment matching estimation
 #               - "mle" Maximum likelihood estimation
 #               - Other methods available in fitdist.
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
@@ -360,7 +360,7 @@ fgumbel <- function(x) {
 # Args: sample: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
-#               - "mme" Mmoment matching estimation
+#               - "mme" Moment matching estimation
 #               - "mle" Maximum likelihood estimation
 #               - Other methods available in fitdist.
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
@@ -504,7 +504,7 @@ fgev <- function(x) {
 # Args: sample: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
-#               - "mme" Mmoment matching estimation
+#               - "mme" Moment matching estimation
 #               - "mle" Maximum likelihood estimation
 #               - Other methods available in fitdist.
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
@@ -532,7 +532,7 @@ fit_gev <- function(sample, method = "lmme", ...) {
 #              "gumbel", "gev".
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
-#               - "mme" Mmoment matching estimation
+#               - "mme" Moment matching estimation
 #               - "mle" Maximum likelihood estimation
 #               - Other methods available in fitdist.
 #       ...: Additional arguments passed to the corresponding fitting function.
