@@ -3,6 +3,7 @@ library("lmomco")
 library("MASS")
 library("survival")
 library("fitdistrplus")
+library("parallel")
 
 # ----------------------------- GLOBAL VARIABLES ----------------------------- #
 probmodel_names <- c("norm", "lognorm", "gamma", "pearson3",
@@ -42,7 +43,7 @@ emoms <- function(x, order, ...) {
 
 # ---------------------------- Normal distribution --------------------------- #
 # Fit a normal distribution to a sample using different methods.
-# Args: sample: A numeric vector containing sample data.
+# Args: x: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
 #               - "mme" Moment matching estimation
@@ -51,11 +52,11 @@ emoms <- function(x, order, ...) {
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
 # Returns: A numeric vector containing the estimated parameters
 #         (mean, standard deviation).
-fit_norm <- function(sample, method = "lmme", ...) {
+fit_norm <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
-    params <- parnor(lmoms(sample))$para
+    params <- parnor(lmoms(x))$para
   } else {
-    params <- fitdist(sample, dist = "norm", method = method, ...)$estimate
+    params <- fitdist(x, dist = "norm", method = method, ...)$estimate
   }
   return(as.numeric(params))
 }
@@ -63,17 +64,17 @@ fit_norm <- function(sample, method = "lmme", ...) {
 # -------------------------- Lognormal distribution -------------------------- #
 # Fit a log-normal distribution to a sample by applying a normal fit on the
 # logarithm of the data.
-# Args: sample: A numeric vector containing sample data.
+# Args: x: A numeric vector containing sample data.
 #       ...: Additional arguments passed to fit_norm.
 # Returns: A numeric vector containing the estimated parameters (mean,
 #          standard deviation) for the log-normal distribution.
-fit_lognorm <- function(sample, ...) {
-  return(fit_norm(log(sample), ...))
+fit_lognorm <- function(x, ...) {
+  return(fit_norm(log(x), ...))
 }
 
 # ---------------------------- Gamma distribution ---------------------------- #
 # Fit a gamma distribution to a sample using different methods.
-# Args: sample: A numeric vector containing sample data.
+# Args: x: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
 #               - "mme" Moment matching estimation
@@ -81,12 +82,12 @@ fit_lognorm <- function(sample, ...) {
 #               - Other methods available in fitdist.
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
 # Returns: A numeric vector containing the estimated parameters (shape, rate).
-fit_gamma <- function(sample, method = "lmme", ...) {
+fit_gamma <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
-    params <- pargam(lmoms(sample))$para
+    params <- pargam(lmoms(x))$para
     params <- c(params[1], 1 / params[2])
   } else {
-    params <- fitdist(sample, dist = "gamma", method = method, ...)$estimate
+    params <- fitdist(x, dist = "gamma", method = method, ...)$estimate
   }
   return(as.numeric(params))
 }
@@ -183,7 +184,7 @@ fpearson3 <- function(x) {
 }
 
 # Fit a Pearson Type III distribution to a sample using different methods.
-# Args: sample: A numeric vector containing sample data.
+# Args: x: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
 #               - "mme" Moment matching estimation
@@ -192,17 +193,17 @@ fpearson3 <- function(x) {
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
 # Returns: A numeric vector containing the estimated parameters (shape, scale,
 #          location).
-fit_pearson3 <- function(sample, method = "lmme", ...) {
+fit_pearson3 <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
-    params <- parpe3(lmoms(sample))$para
+    params <- parpe3(lmoms(x))$para
   } else if (method == "mme") {
-    params <- mmedist(sample, "pearson3", start = fpearson3(sample),
+    params <- mmedist(x, "pearson3", start = fpearson3(x),
                       order = 1:3, memp = epearson3)$estimate
   } else if (method == "mle") {
-    params <- mle2par(sample, type = "pe3")$optim$par
+    params <- mle2par(x, type = "pe3")$optim$par
   } else {
-    params <- fitdist(sample, dist = "pearson3", method = method,
-                      start = fpearson3(sample), ...)$estimate
+    params <- fitdist(x, dist = "pearson3", method = method,
+                      start = fpearson3(x), ...)$estimate
   }
   return(as.numeric(params))
 }
@@ -263,12 +264,12 @@ rlogpearson3 <- function(n, loc, scale, shape) {
 
 # Fit a log-Pearson Type III distribution to a sample by applying a Pearson
 # Type III fit on the logarithm of the data.
-# Args: sample: A numeric vector containing sample data.
+# Args: x: A numeric vector containing sample data.
 #       ...: Additional arguments passed to fit_pearson3.
 # Returns: A numeric vector containing the estimated parameters (shape, scale,
 #          location) for the log-Pearson Type III distribution.
-fit_logpearson3 <- function(sample, ...) {
-  return(fit_pearson3(log(sample), ...))
+fit_logpearson3 <- function(x, ...) {
+  return(fit_pearson3(log(x), ...))
 }
 
 
@@ -357,7 +358,7 @@ fgumbel <- function(x) {
 }
 
 # Fit a Gumbel distribution to a sample using different methods.
-# Args: sample: A numeric vector containing sample data.
+# Args: x: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
 #               - "mme" Moment matching estimation
@@ -366,15 +367,15 @@ fgumbel <- function(x) {
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
 # Returns: A numeric vector containing the estimated parameters (location,
 #          scale).
-fit_gumbel <- function(sample, method = "lmme", ...) {
+fit_gumbel <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
-    params <- pargum(lmoms(sample))$para
+    params <- pargum(lmoms(x))$para
   } else if (method == "mme") {
-    params <- mmedist(sample, "gumbel", start = fgumbel(sample),
+    params <- mmedist(x, "gumbel", start = fgumbel(x),
                       order = 1:2, memp = egumbel)$estimate
   } else {
-    params <- fitdist(sample, dist = "gumbel", method = method,
-                      start = fgumbel(sample), ...)$estimate
+    params <- fitdist(x, dist = "gumbel", method = method,
+                      start = fgumbel(x), ...)$estimate
   }
   return(as.numeric(params))
 }
@@ -501,7 +502,7 @@ fgev <- function(x) {
 
 # Fit a Generalized Extreme Value (GEV) distribution to a sample using
 # different methods.
-# Args: sample: A numeric vector containing sample data.
+# Args: x: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
 #               - "mme" Moment matching estimation
@@ -510,15 +511,15 @@ fgev <- function(x) {
 #       ...: Additional arguments passed to fitdist (if not using "lmme").
 # Returns: A numeric vector containing the estimated parameters (shape,
 #          location, scale).
-fit_gev <- function(sample, method = "lmme", ...) {
+fit_gev <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
-    params <- pargev(lmoms(sample))$para
+    params <- pargev(lmoms(x))$para
   } else if (method == "mme") {
-    params <- mmedist(sample, "gev", start = fgev(sample),
+    params <- mmedist(x, "gev", start = fgev(x),
                       order = 1:3, memp = egev)$estimate
   } else {
-    params <- fitdist(sample, dist = "gev", method = method,
-                      start = fgev(sample), ...)$estimate
+    params <- fitdist(x, dist = "gev", method = method,
+                      start = fgev(x), ...)$estimate
   }
   return(as.numeric(params))
 }
@@ -526,7 +527,7 @@ fit_gev <- function(sample, method = "lmme", ...) {
 # ---------------------------------------------------------------------------- #
 
 # Fit a specified probability distribution to a sample using different methods.
-# Args: sample: A numeric vector containing sample data.
+# Args: x: A numeric vector containing sample data.
 #       distr: A character string specifying the distribution. Available options
 #              are: "norm", "lognorm", "gamma", "pearson3", "logpearson3",
 #              "gumbel", "gev".
@@ -538,7 +539,7 @@ fit_gev <- function(sample, method = "lmme", ...) {
 #       ...: Additional arguments passed to the corresponding fitting function.
 # Returns: The result of fitting the specified distribution to the sample,
 #          using the selected method.
-fit_probmodel <- function(sample, distr, method = "lmme", ...) {
+fit_probmodel <- function(x, distr, method = "lmme", ...) {
   result <- tryCatch({
     # Map distribution names to fitting functions
     distr_map <- list(
@@ -557,7 +558,7 @@ fit_probmodel <- function(sample, distr, method = "lmme", ...) {
     }
     # Call the appropriate function
     fit_fun <- distr_map[[distr]]
-    return(fit_fun(sample, method = method, ...))
+    return(fit_fun(x, method = method, ...))
   }, error = function(e) {
     return(rep(NaN, probmodel_nparams[[distr]]))
   })
@@ -725,4 +726,72 @@ rprobmodel <- function(n, distr, params) {
     return(rep(NaN, n))
   })
   return(result)
+}
+
+# Perform Monte Carlo iterations to estimate multiple parameters of a
+# distribution. The goal is to fit a probability model n times to random samples
+# drawn from the input sample. Each Monte Carlo sample is drawn without
+# replacement and has a length equal to the length of the input sample minus
+# one.
+# Args:
+#   x: A numeric vector of data used for bootstrapping.
+#   niters: The number of bootstrap iterations to perform.
+#   dist: A string specifying the distribution to fit. E.g., "norm", "gamma".
+#   method: The method used to fit the distribution. It is passed to fit
+#          _probmodel.
+#   parallel: A logical value indicating whether to run the computation in
+#             parallel (default is FALSE).
+#   n_cores: An integer specifying the number of cores to use if parallel is
+#            TRUE. If NULL, defaults to one less than the total available cores.
+#   ...: Additional arguments passed to the fit_probmodel function.
+#
+# Returns:
+#   A data frame with the estimated parameters from each bootstrap iteration.
+#   The rows correspond to the iterations, and columns correspond to the fitted
+#   parameters from the fit_probmodel function.
+bootstrap_probmodel <- function(x, niters, dist, method, parallel = FALSE,
+                                n_cores = NULL, ...) {
+  if (parallel == FALSE) {
+    params <- list()
+    for (i in seq(niters)) {
+      xsample <- sample(x, size = length(x) - 1, replace = FALSE)
+      params[[i]] <- fit_probmodel(xsample, distr = dist, # nolint
+                                   method = method, ...)
+    }
+    params <- t(data.frame(params))
+    rownames(params) <- seq(niters)
+    return(params)
+  } else {
+    # Set up a cluster
+    available_cores <- detectCores()  # Get the total number of available cores
+    if (is.null(n_cores)) {
+      # Default to using all but one core if n_cores is NULL
+      n_cores <- available_cores - 1
+    }
+    # Check if n_cores is valid
+    if (n_cores > available_cores) {
+      stop("Error: n_cores cannot exceed the available cores on this machine.")
+    }
+    cl <- makeCluster(n_cores)
+    # Export necessary variables and functions to the cluster
+    vars <- c("x", "niters", "dist", "method", "fit_probmodel")
+    clusterExport(cl, varlist = vars, envir = environment())
+    clusterEvalQ(cl, {
+      source("fit_utils.R")  # Give all variables of this script to the cluster
+    })
+
+    # Perform the parallel computation using parLapply
+    params <- parLapply(cl, seq(niters), function(i, ...) {
+      xsample <- sample(x, size = length(x) - 1, replace = FALSE)
+      fit_probmodel(xsample, distr = dist, method = method, ...) 
+    }, ...)
+
+    # Stop the cluster
+    stopCluster(cl)
+
+    # Convert the result into a data frame
+    params <- t(data.frame(params))
+    rownames(params) <- seq(niters)
+    return(params)
+  }
 }
