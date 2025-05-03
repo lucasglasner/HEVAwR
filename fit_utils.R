@@ -730,7 +730,7 @@ rprobmodel <- function(n, distr, params) {
 
 # Perform Monte Carlo iterations to estimate multiple parameters of a
 # distribution. The goal is to fit a probability model n times to random samples
-# drawn from the input sample. Each Monte Carlo sample is drawn without
+# drawn from the input sample. Each Monte Carlo sample is drawn with or without
 # replacement and has a length equal to the length of the input sample minus
 # one.
 # Args:
@@ -741,6 +741,7 @@ rprobmodel <- function(n, distr, params) {
 #          _probmodel.
 #   parallel: A logical value indicating whether to run the computation in
 #             parallel (default is FALSE).
+#   replace: A logical value indicating whether to sample with replacement
 #   n_cores: An integer specifying the number of cores to use if parallel is
 #            TRUE. If NULL, defaults to one less than the total available cores.
 #   ...: Additional arguments passed to the fit_probmodel function.
@@ -749,13 +750,13 @@ rprobmodel <- function(n, distr, params) {
 #   A data frame with the estimated parameters from each bootstrap iteration.
 #   The rows correspond to the iterations, and columns correspond to the fitted
 #   parameters from the fit_probmodel function.
-bootstrap_probmodel <- function(x, niters, dist, method, parallel = FALSE,
-                                n_cores = NULL, ...) {
+bootstrap_probmodel <- function(x, niters, distr, method, parallel = FALSE,
+                                replace = FALSE, n_cores = NULL, ...) {
   if (parallel == FALSE) {
     params <- list()
     for (i in seq(niters)) {
-      xsample <- sample(x, size = length(x) - 1, replace = FALSE)
-      params[[i]] <- fit_probmodel(xsample, distr = dist, # nolint
+      xsample <- sample(x, size = length(x) - 1, replace = replace)
+      params[[i]] <- fit_probmodel(xsample, distr = distr, # nolint
                                    method = method, ...)
     }
     params <- t(data.frame(params))
@@ -782,8 +783,8 @@ bootstrap_probmodel <- function(x, niters, dist, method, parallel = FALSE,
 
     # Perform the parallel computation using parLapply
     params <- parLapply(cl, seq(niters), function(i, ...) {
-      xsample <- sample(x, size = length(x) - 1, replace = FALSE)
-      fit_probmodel(xsample, distr = dist, method = method, ...) 
+      xsample <- sample(x, size = length(x) - 1, replace = replace)
+      fit_probmodel(xsample, distr = distr, method = method, ...)
     }, ...)
 
     # Stop the cluster
