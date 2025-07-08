@@ -88,8 +88,8 @@ chi2_gof <- function(x, distr, params, nbins = NULL, alpha = 0.05) {
   # Compute expected frequencies using the cumulative density function
   expected <- numeric(length(observed))
   for (i in seq_along(observed)) {
-    lower <- pprobmodel(breaks[i], dist, params) # nolint
-    upper <- pprobmodel(breaks[i + 1], dist, params) # nolint
+    lower <- pprobmodel(breaks[i], distr, params) # nolint
+    upper <- pprobmodel(breaks[i + 1], distr, params) # nolint
     expected[i] <- n * (upper - lower)
   }
 
@@ -119,7 +119,7 @@ chi2_gof <- function(x, distr, params, nbins = NULL, alpha = 0.05) {
 #   A list with the KS statistic, the pvalue and a bool if the model pass the
 #   test or not (0.05 confidence by default).
 ks_gof <- function(x, distr, params, alpha = 0.05) {
-  ks <- ks.test(x, pprobmodel, dist, params) # nolint
+  ks <- ks.test(x, pprobmodel, distr, params) # nolint
   return(list(statistic = ks$statistic, pvalue = ks$p.value,
               test = ks$p.value > alpha))
 }
@@ -139,7 +139,7 @@ ks_gof <- function(x, distr, params, alpha = 0.05) {
 #   A list with the CVM statistic, the pvalue and a bool if the model pass the
 #   test or not (0.05 confidence by default).
 cvm_gof <- function(x, distr, params, alpha = 0.05) {
-  cvm <- cvm.test(x, pprobmodel, dist, params) # nolint
+  cvm <- cvm.test(x, pprobmodel, distr, params) # nolint
   return(list(statistic = cvm$statistic, pvalue = cvm$p.value,
               test = cvm$p.value > alpha))
 }
@@ -159,7 +159,7 @@ cvm_gof <- function(x, distr, params, alpha = 0.05) {
 #   A list with the AD statistic, the pvalue and a bool if the model pass the
 #   test or not (0.05 confidence by default).
 ad_gof <- function(x, distr, params, alpha = 0.05) {
-  ad <- ad.test(x, pprobmodel, dist, params) # nolint
+  ad <- ad.test(x, pprobmodel, distr, params) # nolint
   return(list(statistic = ad$statistic, pvalue = ad$p.value,
               test = ad$p.value > alpha))
 }
@@ -202,6 +202,10 @@ gofmetrics <- function(x, y, distr, params, alpha = 0.05, nbins = NULL) {
   cvm <- cvm_gof(x, distr, params, alpha = alpha)
   ad <- ad_gof(x, distr, params, alpha = alpha)
   # Merge results
+#   metrics <- c(n = n, r2 = r2, rmse = rmse, mbias = mbias, aic = aic, bic = bic,
+#                 chi2statistic = chi2$statistic, chi2critvalue = chi2$critvalue,
+#                 chi2pvalue = chi2$pvalue, kstest = ks$statistic,
+#                 kspvalue = ks$pvalue)
   metrics <- c(n = n, r2 = r2, rmse = rmse, mbias = mbias, aic = aic, bic = bic,
                chi2pvalue = chi2$pvalue, kspvalue = ks$pvalue,
                cvmpvalue = cvm$pvalue, adpvalue = ad$pvalue,
