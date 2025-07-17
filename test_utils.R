@@ -202,10 +202,6 @@ gofmetrics <- function(x, y, distr, params, alpha = 0.05, nbins = NULL) {
   cvm <- cvm_gof(x, distr, params, alpha = alpha)
   ad <- ad_gof(x, distr, params, alpha = alpha)
   # Merge results
-#   metrics <- c(n = n, r2 = r2, rmse = rmse, mbias = mbias, aic = aic, bic = bic,
-#                 chi2statistic = chi2$statistic, chi2critvalue = chi2$critvalue,
-#                 chi2pvalue = chi2$pvalue, kstest = ks$statistic,
-#                 kspvalue = ks$pvalue)
   metrics <- c(n = n, r2 = r2, rmse = rmse, mbias = mbias, aic = aic, bic = bic,
                chi2pvalue = chi2$pvalue, kspvalue = ks$pvalue,
                cvmpvalue = cvm$pvalue, adpvalue = ad$pvalue,
