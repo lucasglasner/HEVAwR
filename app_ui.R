@@ -13,9 +13,9 @@ library(shinythemes)
 #   trigger button.
 create_sidebar_ui <- function() {
   sidebarPanel(
-    width = 3,
+    width = 2,
     # Data upload section
-    h4("1. Data Input"),
+    h4("1. Data Input", style = "text-align: center;"),
     fileInput(
       "datafile", "Upload CSV/TXT File",
       accept = c(".csv", ".txt")
@@ -29,25 +29,7 @@ create_sidebar_ui <- function() {
       rows = 5, placeholder = "10.5\n12.3\n15.7\n..."
     ),
     hr(),
-    # Distribution selection
-    h4("2. Distribution Settings"),
-    selectInput("distribution", "Select Distribution:",
-                choices = c("Normal" = "norm",
-                          "Lognormal" = "lognorm",
-                          "Gamma" = "gamma",
-                          "Pearson Type III" = "pearson3",
-                          "Log-Pearson Type III" = "logpearson3",
-                          "Gumbel" = "gumbel",
-                          "GEV" = "gev"),
-                selected = "gev"),
-    
-    selectInput("method", "Fitting Method:",
-                choices = c("L-moments" = "lmme",
-                          "Method of Moments" = "mme",
-                          "Maximum Likelihood" = "mle"),
-                selected = "lmme"),
-    hr(),
-    h4("3. Return Periods"),
+    h4("2. Return Periods", style = "text-align: center;"),
     textInput(
       "target_rperiods",
       "Target return periods (comma-separated):",
@@ -63,9 +45,9 @@ create_sidebar_ui <- function() {
 #   interactive data table, and sample statistics.
 create_data_preview_tab <- function() {
   tabPanel("Data Preview",
-           h4("Sample Statistics"),
+           h4("Sample Statistics", style = "text-align: center;"),
            uiOutput("sample_stats"),
-           h4("Uploaded Data"),
+           h4("Uploaded Data", style = "text-align: center;"),
            verbatimTextOutput("data_summary"),
            DTOutput("data_table"),
            hr()
@@ -82,23 +64,55 @@ create_fitting_results_tab <- function() {
   tabPanel("Fitting Tool",
     fluidRow(
       column(12,
-        div(
-          style = "text-align: center; margin-bottom: 10px;",
-          actionButton(
-            "run_analysis", "Run Analysis",
-            class = "btn-primary btn-md",
-            icon = icon("play")
+        h4("Distribution Settings", style = "text-align: center;"),
+        fluidRow(
+          column(4, offset = 2,
+            selectInput("distribution", "Select Distribution:",
+                        choices = c("Normal" = "norm",
+                                  "Lognormal" = "lognorm",
+                                  "Gamma" = "gamma",
+                                  "Pearson Type III" = "pearson3",
+                                  "Log-Pearson Type III" = "logpearson3",
+                                  "Gumbel" = "gumbel",
+                                  "GEV" = "gev"),
+                        selected = "gev")
+          ),
+          column(4,
+            selectInput("method", "Fitting Method:",
+                        choices = c("L-moments" = "lmme",
+                                  "Method of Moments" = "mme",
+                                  "Maximum Likelihood" = "mle"),
+                        selected = "lmme")
           )
         ),
         hr()
       )
     ),
     fluidRow(
-      column(6,
-        h4("Fitted Parameters (Initial Fit)"),
+      column(12,
+        div(
+          style = "text-align: center; margin-bottom: 10px;",
+          actionButton(
+            "run_analysis", "Run Analysis",
+            class = "btn-primary btn-md",
+            icon = icon("play")
+          ),
+          downloadButton(
+            "download_report",
+            "Download Excel Report",
+            class = "btn-success btn-md",
+            icon = icon("file-excel")
+          )
+        ),
+        hr()
+      )
+    ),
+    fluidRow(
+      column(4,
+        h4("Fitted Parameters (Initial Fit)", style = "text-align: center;"),
         verbatimTextOutput("initial_params"),
         hr(),
-        h4("Manual Parameter Adjustment"),
+        h4("Manual Parameter Adjustment", style = "text-align: center;"),
         helpText(
           "Adjust parameters manually and click",
           "'Recompute' to update results"
@@ -111,7 +125,7 @@ create_fitting_results_tab <- function() {
           icon = icon("calculator")
         ),
         hr(),
-        h4("Confidence Intervals"),
+        h4("Confidence Intervals", style = "text-align: center;"),
         helpText(
           "Compute bootstrap confidence intervals for",
           "uncertainty quantification"
@@ -150,8 +164,8 @@ create_fitting_results_tab <- function() {
         ),
         hr()
       ),
-      column(6,
-        h4("Probability Plot (Value vs Return Period)"),
+      column(8,
+        h4("Probability Plot (Value vs Return Period)", style = "text-align: center;"),
         downloadButton(
           "download_prob_rperiod",
           "Download Plot",
@@ -163,20 +177,16 @@ create_fitting_results_tab <- function() {
     ),
     fluidRow(
       column(6,
-        h4("Goodness-of-Fit Tests"),
+        h4("Goodness-of-Fit Tests", style = "text-align: center;"),
         tableOutput("gof_tests")
       ),
       column(6,
-        h4("Return Period Quantiles"),
+        h4("Return Period Quantiles", style = "text-align: center;"),
         uiOutput("quantiles_table")
       )
     ),
-    hr(),
-    downloadButton(
-      "download_report",
-      "Download Excel Report",
-      class = "btn-success"
-    )
+    br(),
+    hr()
   )
 }
 
@@ -191,7 +201,7 @@ create_plots_tab <- function() {
     fluidRow(
       column(
         6,
-        h4("Probability Plot (Value vs Exceedance Probability)"),
+        h4("Probability Plot (Value vs Exceedance Probability)", style = "text-align: center;"),
         downloadButton(
           "download_prob_pexc",
           "Download Plot",
@@ -201,7 +211,7 @@ create_plots_tab <- function() {
       ),
       column(
         6,
-        h4("Q-Q Plot"),
+        h4("Q-Q Plot", style = "text-align: center;"),
         downloadButton(
           "download_qq",
           "Download Plot",
@@ -214,7 +224,7 @@ create_plots_tab <- function() {
     fluidRow(
       column(
         6,
-        h4("Histogram with Fitted PDF"),
+        h4("Histogram with Fitted PDF", style = "text-align: center;"),
         downloadButton(
           "download_hist",
           "Download Plot",
@@ -224,7 +234,7 @@ create_plots_tab <- function() {
       ),
       column(
         6,
-        h4("Empirical vs Fitted CDF"),
+        h4("Empirical vs Fitted CDF", style = "text-align: center;"),
         downloadButton(
           "download_cdf",
           "Download Plot",
@@ -232,7 +242,86 @@ create_plots_tab <- function() {
         ),
         plotOutput("cdf_plot", height = "400px")
       )
-    )
+    ),
+    br(),
+    hr()
+  )
+}
+
+# Create the model comparison tab for multi-distribution analysis.
+# Returns:
+#   A Shiny tabPanel object with controls for selecting multiple
+#   distributions, displaying their parameters with manual
+#   adjustment capability, and showing a comparison probability
+#   plot.
+create_model_comparison_tab <- function() {
+  tabPanel("Model Comparison",
+    h4("Multi-Distribution Comparison", style = "text-align: center;"),
+    fluidRow(
+      column(12,
+        h5("Select Distributions to Compare", 
+           style = "text-align: center;"),
+        fluidRow(
+          column(6, offset = 3,
+            checkboxGroupInput(
+              "compare_distributions",
+              NULL,
+              choices = c(
+                "Normal" = "norm",
+                "Lognormal" = "lognorm",
+                "Gamma" = "gamma",
+                "Pearson Type III" = "pearson3",
+                "Log-Pearson Type III" = "logpearson3",
+                "Gumbel" = "gumbel",
+                "GEV" = "gev"
+              ),
+              selected = NULL,
+              inline = TRUE
+            )
+          )
+        ),
+        fluidRow(
+          column(4, offset = 4,
+            selectInput("comparison_method", "Fitting Method:",
+                       choices = c("L-moments" = "lmme",
+                                 "Method of Moments" = "mme",
+                                 "Maximum Likelihood" = "mle"),
+                       selected = "lmme")
+          )
+        ),
+        tags$div(
+          style = "text-align: center;",
+          actionButton(
+            "run_comparison",
+            "Run Comparison",
+            class = "btn-primary",
+            icon = icon("chart-line")
+          )
+        ),
+        hr()
+      )
+    ),
+    fluidRow(
+      column(3,
+        h5("Distribution Parameters", style = "text-align: center;"),
+        tags$div(
+          style = "max-height: 450px; overflow-y: auto;",
+          uiOutput("comparison_params_ui")
+        )
+      ),
+      column(9,
+        h5("Comparison Probability Plot", 
+           style = "text-align: center;"),
+        downloadButton(
+          "download_comparison_plot",
+          "Download Plot",
+          class = "btn-sm"
+        ),
+        plotOutput("comparison_plot", height = "450px")
+      )
+    ),
+    br(),
+    hr()
   )
 }
 
@@ -243,16 +332,20 @@ create_plots_tab <- function() {
 create_ui <- function() {
   fluidPage(
     theme = shinytheme("flatly"),
-    titlePanel("Extreme Value Analysis - Distribution Fitting"),
+    titlePanel(
+      div(style = "text-align: center;",
+          "Extreme Value Analysis - Distribution Fitting")
+    ),
     sidebarLayout(
       create_sidebar_ui(),
       mainPanel(
-        width = 9,
+        width = 10,
         tabsetPanel(
           id = "main_tabs",
           create_data_preview_tab(),
           create_fitting_results_tab(),
-          create_plots_tab()
+          create_plots_tab(),
+          create_model_comparison_tab()
         )
       )
     )

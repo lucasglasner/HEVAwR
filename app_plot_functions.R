@@ -64,20 +64,20 @@ create_metrics_label <- function(metrics) {
 #   empirical points, fitted curve, optional metrics annotation,
 #   and optional confidence bands.
 create_prob_plot_rperiod <- function(eva_table,
-                                      model_rperiods,
-                                      model_quant,
-                                      distr,
-                                      metrics = NULL,
-                                      ci_results = NULL) {
+                                     model_rperiods,
+                                     model_quant,
+                                     distr,
+                                     metrics = NULL,
+                                     ci_results = NULL) {
   distr_upper <- toupper(distr)
   p <- ggplot() +
-    geom_point(data = eva_table, 
-              aes(x = rperiod, y = data), 
-              color = "blue", size = 3, alpha = 0.6) +
-    geom_line(aes(x = model_rperiods, y = model_quant), 
-             color = "red", linewidth = 1.0) +
+    geom_point(data = eva_table,
+               aes(x = rperiod, y = data),
+               color = "blue", size = 3, alpha = 0.6) +
+    geom_line(aes(x = model_rperiods, y = model_quant),
+              color = "red", linewidth = 1.0) +
     scale_x_log10() +
-    labs(x = "Return Period (years)", 
+    labs(x = "Return Period (years)",
          y = "Return Level",
          title = paste("Probability Plot -", distr_upper)) +
     get_plot_theme()
@@ -131,13 +131,13 @@ create_prob_plot_pexc <- function(eva_table,
                                    distr) {
   distr_upper <- toupper(distr)
   ggplot() +
-    geom_point(data = eva_table, 
-              aes(x = pexc, y = data), 
-              color = "blue", size = 3, alpha = 0.6) +
-    geom_line(aes(x = model_pexc, y = model_quant), 
+    geom_point(data = eva_table,
+               aes(x = pexc, y = data),
+               color = "blue", size = 3, alpha = 0.6) +
+    geom_line(aes(x = model_pexc, y = model_quant),
              color = "red", linewidth = 1.0) +
     scale_x_log10() +
-    labs(x = "Exceedance Probability", 
+    labs(x = "Exceedance Probability",
          y = "Return Level",
          title = paste("Probability Plot -", distr_upper)) +
     get_plot_theme()
@@ -161,7 +161,7 @@ create_qq_plot <- function(eva_table, distr, params) {
     stat_qq_line(distribution = function(p) {
       qprobmodel(p, distr, params)
     }, color = "red", linewidth = 1.0) +
-    labs(x = "Theoretical Quantiles", 
+    labs(x = "Theoretical Quantiles",
          y = "Sample Quantiles",
          title = paste("Q-Q Plot -", distr_upper)) +
     get_plot_theme()
@@ -211,11 +211,116 @@ create_cdf_plot <- function(eva_table, distr, params) {
   x_seq <- seq(min(eva_table$data), max(eva_table$data), length.out = 200)
   cdf_vals <- pprobmodel(x_seq, distr, params)
   ggplot() +
-    stat_ecdf(data = eva_table, aes(x = data), 
+    stat_ecdf(data = eva_table, aes(x = data),
              geom = "step", color = "blue", linewidth = 1.0) +
     geom_line(aes(x = x_seq, y = cdf_vals), color = "red", linewidth = 1.0) +
     labs(x = "Value", 
          y = "Cumulative Probability",
          title = paste("Empirical vs Fitted CDF -", distr_upper)) +
     get_plot_theme()
+}
+
+# Create a comparison probability plot showing multiple
+# distributions.
+# Args:
+#   comparison_results: Named list where each element is a
+#                       distribution result (from
+#                       run_eva_analysis).
+# Returns:
+#   A ggplot object showing empirical data and fitted curves
+#   for all distributions.
+create_comparison_plot <- function(comparison_results) {
+  # Get empirical data from first distribution
+  first_result <- comparison_results[[1]]
+  eva_table <- first_result$eva_table
+  
+  # Prepare empirical data
+  empirical_data <- data.frame(
+    T = eva_table$rperiod,
+    Value = eva_table$data
+  )
+  
+  # Prepare model data for all distributions
+  model_data_list <- lapply(names(comparison_results), function(distr) {
+    result <- comparison_results[[distr]]
+    model_table <- result$model_quant
+    
+    # Extract T values from rownames and Value from column
+    T_values <- as.numeric(rownames(model_table))
+    Value_values <- model_table[, 1]
+    
+    data.frame(
+      T = T_values,
+      Value = Value_values,
+      Distribution = toupper(distr)
+    )
+  })
+  
+  model_data <- do.call(rbind, model_data_list)
+  
+  # Define color palette
+  n_dists <- length(comparison_results)
+  colors <- scales::hue_pal()(n_dists)
+  
+  # Create base plot
+  p <- ggplot() +
+    # Model curves
+    geom_line(
+      data = model_data,
+      aes(x = T, y = Value, color = Distribution),
+      linewidth = 1.2
+    ) +
+    # Empirical points
+    geom_point(
+      data = empirical_data,
+      aes(x = T, y = Value),
+      size = 2.5,
+      alpha = 0.7,
+      color = "black"
+    ) +
+    scale_x_log10(
+      breaks = scales::trans_breaks("log10", function(x) 10^x),
+      labels = scales::trans_format("log10", scales::math_format(10^.x))
+    ) +
+    labs(
+      x = "Return Period (years)",
+      y = "Return Level",
+      color = "Distribution"
+    ) +
+    get_plot_theme() +
+    theme(
+      legend.position = "right",
+      legend.title = element_text(size = 12, face = "bold"),
+      legend.text = element_text(size = 10)
+    )
+  
+  # ==================== GOF Summary Text Overlay ==================== #
+  # Build ✓ / ✗ summary (Chi2, KS, CVM, AD) based on p-value > 0.05.
+  has_metrics <- all(vapply(comparison_results, function(r) !is.null(r$metrics), logical(1)))
+  if (has_metrics) {
+    gof_lines <- c("DIST  KS  CVM  AD")
+    symbol_for <- function(p) {
+      if (is.na(p)) return("NA  ")
+      if (p > 0.05) "✓" else "✗"
+    }
+    for (distr in names(comparison_results)) {
+      mets <- comparison_results[[distr]]$metrics
+      pv <- function(name) if (name %in% rownames(mets)) as.numeric(mets[name, 1]) else NA_real_
+      line <- sprintf("%-5s %-3s  %-3s  %-3s", toupper(distr),
+              symbol_for(pv("kspvalue")),
+                      symbol_for(pv("cvmpvalue")),
+                      symbol_for(pv("adpvalue")))
+      gof_lines <- c(gof_lines, line)
+    }
+    overlay_text <- paste(gof_lines, collapse = "\n")
+    x_min <- min(model_data$T, na.rm = TRUE)
+    y_max <- max(model_data$Value, na.rm = TRUE)
+    p <- p + annotate(
+      "text", x = x_min, y = y_max, label = overlay_text,
+      hjust = 0, vjust = 1, family = "mono", size = 3, lineheight = 0.95,
+      fontface = "plain", color = "black"
+    )
+  }
+  
+  return(p)
 }

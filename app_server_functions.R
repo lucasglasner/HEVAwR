@@ -271,37 +271,31 @@ compute_bootstrap_ci <- function(data,
 #   params: Numeric vector of distribution parameters.
 # Returns:
 #   A data frame containing test names, statistics, p-values, and
-#   pass/fail indicators (✓/✗) for Chi-Squared,
-#   Kolmogorov-Smirnov, Cramer-von Mises, and Anderson-Darling
-#   tests.
+#   pass/fail indicators (✓/✗) for Kolmogorov-Smirnov,
+#   Cramer-von Mises, and Anderson-Darling tests.
 run_gof_tests <- function(data, distr, params) {
-  # Run individual GOF tests
-  chi2 <- chi2_gof(data, distr, params, nbins = NULL, alpha = 0.05)
-  ks <- ks_gof(data, distr, params, alpha = 0.05)
+  # Run individual GOF tests (Chi-Squared removed)
+  ks  <- ks_gof(data, distr, params, alpha = 0.05)
   cvm <- cvm_gof(data, distr, params, alpha = 0.05)
-  ad <- ad_gof(data, distr, params, alpha = 0.05)
+  ad  <- ad_gof(data, distr, params, alpha = 0.05)
   # Build results dataframe
   data.frame(
     Test = c(
-      "Chi-Squared",
       "Kolmogorov-Smirnov",
       "Cramer-von Mises",
       "Anderson-Darling"
     ),
     Statistic = c(
-      round(chi2$statistic, 4),
       round(ks$statistic, 4),
       round(cvm$statistic, 4),
       round(ad$statistic, 4)
     ),
     `P-Value` = c(
-      round(chi2$pvalue, 4),
       round(ks$pvalue, 4),
       round(cvm$pvalue, 4),
       round(ad$pvalue, 4)
     ),
     Passed = c(
-      ifelse(chi2$test, "✓", "✗"),
       ifelse(ks$test, "✓", "✗"),
       ifelse(cvm$test, "✓", "✗"),
       ifelse(ad$test, "✓", "✗")

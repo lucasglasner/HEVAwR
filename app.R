@@ -30,7 +30,8 @@ server <- function(input, output, session) {
     results = NULL,
     fitted_params = NULL,
     initial_params = NULL,
-    ci_results = NULL
+    ci_results = NULL,
+    comparison_results = list()
   )
   
   # ============= Data Loading ============= #
@@ -221,7 +222,8 @@ server <- function(input, output, session) {
     req(rv$results)
     req(rv$data)
     run_gof_tests(rv$data, rv$results$distr, as.numeric(rv$results$params))
-  }, rownames = FALSE, align = 'c')
+  }, rownames = FALSE, align = 'c', width = "100%", 
+  spacing = "s", bordered = TRUE)
   
 output$quantiles_table <- renderUI({
   req(rv$results)
@@ -401,6 +403,126 @@ output$quantiles_table <- renderUI({
         rv$results$params
       )
       ggsave(file, plot = p, width = 10, height = 6, dpi = 300)
+    }
+  )
+  
+  # ============= Model Comparison ============= #
+  
+  # Run comparison analysis for selected distributions
+  observeEvent(input$run_comparison, {
+    req(rv$data)
+    req(input$compare_distributions)
+    
+    # Clear previous results
+    rv$comparison_results <- list()
+    
+    # Get the common fitting method
+    method <- input$comparison_method
+    
+    # Run analysis for each selected distribution
+    for (distr in input$compare_distributions) {
+      result <- run_eva_analysis(
+        data = rv$data,
+        method = method,
+        distr = distr,
+        target_rperiods = input$target_rperiods,
+        fix_zeros = TRUE
+      )
+      rv$comparison_results[[distr]] <- result
+    }
+  })
+  
+  # Generate parameter UI for all compared distributions
+  output$comparison_params_ui <- renderUI({
+    req(rv$comparison_results)
+    req(length(rv$comparison_results) > 0)
+    
+    # Create a vertical list of distribution parameter sections
+    param_sections <- lapply(names(rv$comparison_results), function(distr) {
+      result <- rv$comparison_results[[distr]]
+      param_names <- get_param_names(distr)
+      
+      tags$div(
+        style = "margin-bottom: 8px;",
+        tags$div(
+          style = "padding: 8px; border: 1px solid #ddd; 
+                   border-radius: 5px; background-color: #f9f9f9;",
+          h6(toupper(distr), style = "text-align: center; 
+                                      font-weight: bold; 
+                                      margin-top: 0px;
+                                      margin-bottom: 8px;
+                                      font-size: 13px;"),
+          lapply(seq_along(param_names), function(i) {
+            param_id <- paste0("comp_", distr, "_param", i)
+            tags$div(
+              style = "margin-bottom: 5px;",
+              numericInput(
+                param_id,
+                paste0(param_names[i], ":"),
+                value = round(as.numeric(result$params[i]), 4),
+                step = 0.001
+              )
+            )
+          }),
+          actionButton(
+            paste0("update_comp_", distr),
+            "Update",
+            class = "btn-sm btn-info btn-block",
+            icon = icon("sync"),
+            style = "margin-top: 5px; padding: 4px 8px; font-size: 12px;"
+          )
+        )
+      )
+    })
+    
+    tagList(param_sections)
+  })
+  
+  # Handle parameter updates for each distribution
+  observe({
+    req(rv$comparison_results)
+    
+    lapply(names(rv$comparison_results), function(distr) {
+      observeEvent(input[[paste0("update_comp_", distr)]], {
+        param_names <- get_param_names(distr)
+        new_params <- sapply(seq_along(param_names), function(i) {
+          input[[paste0("comp_", distr, "_param", i)]]
+        })
+        
+        # Recompute with manual parameters (pass full results list)
+        updated_result <- recompute_with_manual_params(
+          results = rv$comparison_results[[distr]],
+          manual_params = new_params,
+          target_rperiods = input$target_rperiods,
+          fix_zeros = TRUE
+        )
+        
+        rv$comparison_results[[distr]] <- updated_result
+      })
+    })
+  })
+  
+  # Comparison plot
+  output$comparison_plot <- renderPlot({
+    req(rv$comparison_results)
+    req(length(rv$comparison_results) > 0)
+    
+    create_comparison_plot(rv$comparison_results)
+  })
+  
+  # Download comparison plot
+  output$download_comparison_plot <- downloadHandler(
+    filename = function() {
+      paste0(
+        "comparison_plot_", 
+        format(Sys.time(), "%Y%m%d_%H%M%S"), 
+        ".png"
+      )
+    },
+    content = function(file) {
+      req(rv$comparison_results)
+      p <- create_comparison_plot(rv$comparison_results)
+      ggsave(file, plot = p, width = 12, height = 7, dpi = 300)
     }
   )
 }
