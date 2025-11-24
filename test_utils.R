@@ -72,7 +72,8 @@ bic_score <- function(x, distr, params) {
 # Returns:
 #   A list with the chi-squared statistic, the critical value, the pvalue and
 #   a bool if the model pass the test or not (0.05 confidence by default).
-chi2_gof <- function(x, distr, params, nbins = NULL, alpha = 0.05) {
+chi2_gof <- function(x, distr, params,
+                      nbins = NULL, alpha = 0.05) {
   n <- length(x)
 
   # Automatically determine number of bins if not specified
@@ -100,8 +101,12 @@ chi2_gof <- function(x, distr, params, nbins = NULL, alpha = 0.05) {
   critvalue <- qchisq(1 - alpha, df = df)
   pvalue <- 1 - pchisq(statistic, df = df)
   test <- pvalue > alpha
-  return(list(statistic = statistic, critvalue = critvalue, pvalue = pvalue,
-              test = test))
+  return(list(
+    statistic = statistic,
+    critvalue = critvalue,
+    pvalue = pvalue,
+    test = test
+  ))
 }
 
 # Perform a Kolmogorov-Smirnov goodness-of-fit test for the given sample and
@@ -120,8 +125,11 @@ chi2_gof <- function(x, distr, params, nbins = NULL, alpha = 0.05) {
 #   test or not (0.05 confidence by default).
 ks_gof <- function(x, distr, params, alpha = 0.05) {
   ks <- ks.test(x, pprobmodel, distr, params) # nolint
-  return(list(statistic = ks$statistic, pvalue = ks$p.value,
-              test = ks$p.value > alpha))
+  return(list(
+    statistic = ks$statistic,
+    pvalue = ks$p.value,
+    test = ks$p.value > alpha
+  ))
 }
 
 # Perform a Cramer-Von-Misses goodness-of-fit test for the given sample and
@@ -140,8 +148,11 @@ ks_gof <- function(x, distr, params, alpha = 0.05) {
 #   test or not (0.05 confidence by default).
 cvm_gof <- function(x, distr, params, alpha = 0.05) {
   cvm <- cvm.test(x, pprobmodel, distr, params) # nolint
-  return(list(statistic = cvm$statistic, pvalue = cvm$p.value,
-              test = cvm$p.value > alpha))
+  return(list(
+    statistic = cvm$statistic,
+    pvalue = cvm$p.value,
+    test = cvm$p.value > alpha
+  ))
 }
 
 # Perform the Anderson-Darling goodness-of-fit test for the given sample and
@@ -160,8 +171,11 @@ cvm_gof <- function(x, distr, params, alpha = 0.05) {
 #   test or not (0.05 confidence by default).
 ad_gof <- function(x, distr, params, alpha = 0.05) {
   ad <- ad.test(x, pprobmodel, distr, params) # nolint
-  return(list(statistic = ad$statistic, pvalue = ad$p.value,
-              test = ad$p.value > alpha))
+  return(list(
+    statistic = ad$statistic,
+    pvalue = ad$p.value,
+    test = ad$p.value > alpha
+  ))
 }
 
 # Evaluate a probability model in terms of score metrics and goodness of fit
@@ -185,7 +199,8 @@ ad_gof <- function(x, distr, params, alpha = 0.05) {
 # Returns:
 #   A dataframe with the different scores and statistical test metrics (pvalues
 #   and a bool telling if the model is accepted or rejected)
-gofmetrics <- function(x, y, distr, params, alpha = 0.05, nbins = NULL) {
+gofmetrics <- function(x, y, distr, params,
+                        alpha = 0.05, nbins = NULL) {
   # Deal with missing values
   x <- x[!is.na(x)]
   y <- y[!is.na(x)]
@@ -202,11 +217,14 @@ gofmetrics <- function(x, y, distr, params, alpha = 0.05, nbins = NULL) {
   cvm <- cvm_gof(x, distr, params, alpha = alpha)
   ad <- ad_gof(x, distr, params, alpha = alpha)
   # Merge results
-  metrics <- c(n = n, r2 = r2, rmse = rmse, mbias = mbias, aic = aic, bic = bic,
-               chi2pvalue = chi2$pvalue, kspvalue = ks$pvalue,
-               cvmpvalue = cvm$pvalue, adpvalue = ad$pvalue,
-               chi2test = chi2$test, kstest = ks$test, cvmtest = cvm$test,
-               adtest = ad$test)
+  metrics <- c(
+    n = n, r2 = r2, rmse = rmse, mbias = mbias,
+    aic = aic, bic = bic,
+    chi2pvalue = chi2$pvalue, kspvalue = ks$pvalue,
+    cvmpvalue = cvm$pvalue, adpvalue = ad$pvalue,
+    chi2test = chi2$test, kstest = ks$test,
+    cvmtest = cvm$test, adtest = ad$test
+  )
   metrics <- data.frame(metrics)
   colnames(metrics) <- distr
   return(metrics)

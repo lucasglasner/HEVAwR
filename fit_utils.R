@@ -93,8 +93,8 @@ fit_gamma <- function(x, method = "lmme", ...) {
 }
 
 # ----------------------- Pearson type III distribution ---------------------- #
-# Compute the probability density function (PDF) of a Pearson Type 3
-# distribution.
+# Compute the probability density function (PDF) of a
+# Pearson Type 3 distribution.
 # Args: x: A numeric vector containing values at which to evaluate the PDF.
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
@@ -105,8 +105,8 @@ dpearson3 <- function(x, loc, scale, shape) {
   return(pdfpe3(x, para))
 }
 
-# Compute the cumulative distribution function (CDF) of a Pearson Type 3
-# distribution.
+# Compute the cumulative distribution function (CDF) of a
+# Pearson Type 3 distribution.
 # Args: q: A numeric vector containing values at which to evaluate the CDF.
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
@@ -117,7 +117,8 @@ ppearson3 <- function(q, loc, scale, shape) {
   return(cdfpe3(q, para))
 }
 
-# Compute the quantile function (inverse CDF) of a Pearson Type 3 distribution.
+# Compute the quantile function (inverse CDF) of a
+# Pearson Type 3 distribution.
 # Args: p: A numeric vector of probabilities at which to evaluate the quantiles.
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
@@ -134,25 +135,27 @@ qpearson3 <- function(p, loc, scale, shape) {
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
 #       shape: The shape parameter of the Pearson Type 3 distribution.
-# Returns: A numeric vector containing `n` random values from the Pearson
-# Type 3 distribution.
+# Returns: A numeric vector containing `n` random values from
+#          the Pearson Type 3 distribution.
 rpearson3 <- function(n, loc, scale, shape) {
   para <- vec2par(c(loc, scale, shape), "pe3")
   return(rlmomco(n, para))
 }
 
-# Compute the statistical moments of a Pearson Type 3 distribution.
-# Args: x: A numeric vector of values for which to compute the moments.
-#       order: The order of the moment to compute (1 for mean, 2 for variance,
-#              etc.).
-# Returns: A numeric value corresponding to the computed moment of the
+# Compute the statistical moments of a Pearson Type 3
 # distribution.
+# Args: x: A numeric vector of values for which to compute
+#          the moments.
+#       order: The order of the moment to compute
+#              (1 for mean, 2 for variance, etc.).
+# Returns: A numeric value corresponding to the computed
+#          moment of the distribution.
 epearson3 <- function(x, order) {
   return(emoms(x, order))
 }
 
-# Get the specified moment parameter (mean, scale, or shape) of a Pearson Type
-# 3 distribution.
+# Get the specified moment parameter (mean, scale, or shape)
+# of a Pearson Type 3 distribution.
 # Args: order: The moment order (1 for mean, 2 for scale, 3 for shape).
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
@@ -170,8 +173,8 @@ mpearson3 <- function(order, loc, scale, shape) {
   }
 }
 
-# Generate initial parameter estimates for a Pearson Type 3 distribution from
-# sample data.
+# Generate initial parameter estimates for a Pearson Type 3
+# distribution from sample data.
 # Args: x: A numeric vector containing sample data.
 # Returns: A list containing the estimated location, scale, and shape
 # parameters.
@@ -197,20 +200,24 @@ fit_pearson3 <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
     params <- parpe3(lmoms(x))$para
   } else if (method == "mme") {
-    params <- mmedist(x, "pearson3", start = fpearson3(x),
-                      order = 1:3, memp = epearson3)$estimate
+    params <- mmedist(
+      x, "pearson3", start = fpearson3(x),
+      order = 1:3, memp = epearson3
+    )$estimate
   } else if (method == "mle") {
     params <- mle2par(x, type = "pe3")$optim$par
   } else {
-    params <- fitdist(x, dist = "pearson3", method = method,
-                      start = fpearson3(x), ...)$estimate
+    params <- fitdist(
+      x, dist = "pearson3", method = method,
+      start = fpearson3(x), ...
+    )$estimate
   }
   return(as.numeric(params))
 }
 
 # --------------------- Log pearson type III distribution -------------------- #
-# Compute the probability density function (PDF) of a Log-Pearson Type 3
-# distribution.
+# Compute the probability density function (PDF) of a
+# Log-Pearson Type 3 distribution.
 # Args: x: A numeric vector containing values at which to evaluate the PDF.
 #       loc: The location parameter of the Log-Pearson Type 3 distribution.
 #       scale: The scale parameter of the Log-Pearson Type 3 distribution.
@@ -222,8 +229,8 @@ dlogpearson3 <- function(x, loc, scale, shape) {
   return(pdf)
 }
 
-# Compute the cumulative distribution function (CDF) of a Log-Pearson Type 3
-# distribution.
+# Compute the cumulative distribution function (CDF) of a
+# Log-Pearson Type 3 distribution.
 # Args: x: A numeric vector containing values at which to evaluate the CDF.
 #       loc: The location parameter of the Log-Pearson Type 3 distribution.
 #       scale: The scale parameter of the Log-Pearson Type 3 distribution.
@@ -235,8 +242,8 @@ plogpearson3 <- function(q, loc, scale, shape) {
   return(cdf)
 }
 
-# Compute the quantile function (inverse CDF) of a Log-Pearson Type 3
-# distribution.
+# Compute the quantile function (inverse CDF) of a
+# Log-Pearson Type 3 distribution.
 # Args: p: A numeric vector of probabilities at which to evaluate the quantiles.
 #       loc: The location parameter of the Log-Pearson Type 3 distribution.
 #       scale: The scale parameter of the Log-Pearson Type 3 distribution.
@@ -254,16 +261,16 @@ qlogpearson3 <- function(p, loc, scale, shape) {
 #       loc: The location parameter of the Log-Pearson Type 3 distribution.
 #       scale: The scale parameter of the Log-Pearson Type 3 distribution.
 #       shape: The shape parameter of the Log-Pearson Type 3 distribution.
-# Returns: A numeric vector containing `n` random values from the Log-Pearson
-# Type 3 distribution.
+# Returns: A numeric vector containing `n` random values from
+#          the Log-Pearson Type 3 distribution.
 rlogpearson3 <- function(n, loc, scale, shape) {
   para <- vec2par(c(loc, scale, shape), "pe3")
   random_x <- exp(rlmomco(n, para))
   return(random_x)
 }
 
-# Fit a log-Pearson Type III distribution to a sample by applying a Pearson
-# Type III fit on the logarithm of the data.
+# Fit a log-Pearson Type III distribution to a sample by
+# applying a Pearson Type III fit on the logarithm of the data.
 # Args: x: A numeric vector containing sample data.
 #       ...: Additional arguments passed to fit_pearson3.
 # Returns: A numeric vector containing the estimated parameters (shape, scale,
@@ -284,7 +291,8 @@ dgumbel <- function(x, loc, scale) {
   return(pdfgum(x, para))
 }
 
-# Compute the cumulative distribution function (CDF) of a Gumbel distribution.
+# Compute the cumulative distribution function (CDF) of a
+# Gumbel distribution.
 # Args: q: A numeric vector containing values at which to evaluate the CDF.
 #       loc: The location parameter of the Gumbel distribution.
 #       scale: The scale parameter of the Gumbel distribution.
@@ -294,7 +302,8 @@ pgumbel <- function(q, loc, scale) {
   return(cdfgum(q, para))
 }
 
-# Compute the quantile function (inverse CDF) of a Gumbel distribution.
+# Compute the quantile function (inverse CDF) of a
+# Gumbel distribution.
 # Args: p: A numeric vector of probabilities at which to evaluate the quantiles.
 #       loc: The location parameter of the Gumbel distribution.
 #       scale: The scale parameter of the Gumbel distribution.
@@ -309,14 +318,15 @@ qgumbel <- function(p, loc, scale) {
 # Args: n: The number of random values to generate.
 #       loc: The location parameter of the Gumbel distribution.
 #       scale: The scale parameter of the Gumbel distribution.
-# Returns: A numeric vector containing `n` random values from the Gumbel
-#          distribution.
+# Returns: A numeric vector containing `n` random values
+#          from the Gumbel distribution.
 rgumbel <- function(n, loc, scale) {
   para <- vec2par(c(loc, scale), "gum")
   return(rlmomco(n, para))
 }
 
-# Compute the empirical moments of a Gumbel distribution for a given order.
+# Compute the empirical moments of a Gumbel distribution
+# for a given order.
 # Args: x: A numeric vector containing sample data.
 #       order: The order of the moment to compute (e.g., 1 for the mean, 2
 #              for the variance).
@@ -326,12 +336,14 @@ egumbel <- function(x, order) {
   return(emoms(x, order))
 }
 
-# Compute the theoretical moments of a Gumbel distribution for a given order.
+# Compute the theoretical moments of a Gumbel distribution
+# for a given order.
 # Args: order: The order of the moment to compute (e.g., 1 for the mean, 2
 #              for the variance).
 #       loc: The location parameter of the Gumbel distribution.
 #       scale: The scale parameter of the Gumbel distribution.
-# Returns: The value of the specified order moment for the Gumbel distribution.
+# Returns: The value of the specified order moment for the
+#          Gumbel distribution.
 mgumbel <- function(order, loc, scale) {
   if (order == 1) {
     m1 <- loc + 0.57721566490153286060 * scale
@@ -343,8 +355,9 @@ mgumbel <- function(order, loc, scale) {
   }
 }
 
-# Generate first guess of Gumbel distribution parameters based on the sample.
-# The parameters are estimated using the sample's mean and standard deviation.
+# Generate first guess of Gumbel distribution parameters
+# based on the sample. The parameters are estimated using the
+# sample's mean and standard deviation.
 # Args: x: A numeric vector containing the sample data.
 # Returns: A list with two elements:
 #          - loc: The location parameter of the Gumbel distribution.
@@ -371,18 +384,22 @@ fit_gumbel <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
     params <- pargum(lmoms(x))$para
   } else if (method == "mme") {
-    params <- mmedist(x, "gumbel", start = fgumbel(x),
-                      order = 1:2, memp = egumbel)$estimate
+    params <- mmedist(
+      x, "gumbel", start = fgumbel(x),
+      order = 1:2, memp = egumbel
+    )$estimate
   } else {
-    params <- fitdist(x, dist = "gumbel", method = method,
-                      start = fgumbel(x), ...)$estimate
+    params <- fitdist(
+      x, dist = "gumbel", method = method,
+      start = fgumbel(x), ...
+    )$estimate
   }
   return(as.numeric(params))
 }
 
 # ------------------ Generalized extreme value distribution ------------------ #
-# Compute the probability density function (PDF) of a Generalized Extreme
-# Value (GEV) distribution.
+# Compute the probability density function (PDF) of a
+# Generalized Extreme Value (GEV) distribution.
 # Args: x: A numeric vector of values for which the PDF should be computed.
 #       loc: The location parameter of the GEV distribution.
 #       scale: The scale parameter of the GEV distribution.
@@ -394,8 +411,8 @@ dgev <- function(x, loc, scale, shape) {
   return(pdfgev(x, para))
 }
 
-# Compute the cumulative distribution function (CDF) of a Generalized
-# Extreme Value (GEV) distribution.
+# Compute the cumulative distribution function (CDF) of a
+# Generalized Extreme Value (GEV) distribution.
 # Args: q: A numeric vector of quantiles for which the CDF should be computed.
 #       loc: The location parameter of the GEV distribution.
 #       scale: The scale parameter of the GEV distribution.
@@ -515,11 +532,15 @@ fit_gev <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
     params <- pargev(lmoms(x))$para
   } else if (method == "mme") {
-    params <- mmedist(x, "gev", start = fgev(x),
-                      order = 1:3, memp = egev)$estimate
+    params <- mmedist(
+      x, "gev", start = fgev(x),
+      order = 1:3, memp = egev
+    )$estimate
   } else {
-    params <- fitdist(x, dist = "gev", method = method,
-                      start = fgev(x), ...)$estimate
+    params <- fitdist(
+      x, dist = "gev", method = method,
+      start = fgev(x), ...
+    )$estimate
   }
   return(as.numeric(params))
 }
@@ -576,8 +597,9 @@ fit_probmodel <- function(x, distr, method = "lmme", ...) {
 #           distribution.
 #
 # Returns:
-#   A numeric vector of the calculated PDF values for the input `x` based on the
-#   specified distribution and parameters.
+#   A numeric vector of the calculated PDF values for the
+#   input `x` based on the specified distribution and
+#   parameters.
 dprobmodel <- function(x, distr, params) {
   result <- tryCatch({
     # Map distribution names to density functions
@@ -592,8 +614,10 @@ dprobmodel <- function(x, distr, params) {
     )
     # Check if the distribution is supported
     if (!distr %in% names(distr_map)) {
-      stop(sprintf("Invalid distribution: '%s'. Available options are: %s",
-                   distr, paste(names(distr_map), collapse = ", ")))
+      stop(sprintf(
+        "Invalid distribution: '%s'. Options: %s",
+        distr, paste(names(distr_map), collapse = ", ")
+      ))
     }
     # Call the appropriate function
     dfun <- distr_map[[distr]]
@@ -617,8 +641,9 @@ dprobmodel <- function(x, distr, params) {
 #           distribution.
 #
 # Returns:
-#   A numeric vector of the calculated CDF values for the input `x` based on the
-#   specified distribution and parameters.
+#   A numeric vector of the calculated CDF values for the
+#   input `x` based on the specified distribution and
+#   parameters.
 pprobmodel <- function(q, distr, params) {
   result <- tryCatch({
     # Map distribution names to probability functions
@@ -633,8 +658,10 @@ pprobmodel <- function(q, distr, params) {
     )
     # Check if the distribution is supported
     if (!distr %in% names(distr_map)) {
-      stop(sprintf("Invalid distribution: '%s'. Available options are: %s",
-                   distr, paste(names(distr_map), collapse = ", ")))
+      stop(sprintf(
+        "Invalid distribution: '%s'. Options: %s",
+        distr, paste(names(distr_map), collapse = ", ")
+      ))
     }
     # Call the appropriate function
     pfun <- distr_map[[distr]]
@@ -658,8 +685,9 @@ pprobmodel <- function(q, distr, params) {
 #           distribution.
 #
 # Returns:
-#   A numeric vector of the calculated CDF values for the input `x` based on the
-#   specified distribution and parameters.
+#   A numeric vector of the calculated CDF values for the
+#   input `x` based on the specified distribution and
+#   parameters.
 qprobmodel <- function(p, distr, params) {
   result <- tryCatch({
     # Map distribution names to quantile functions
@@ -698,8 +726,8 @@ qprobmodel <- function(p, distr, params) {
 #           distribution.
 #
 # Returns:
-#   A numeric vector of with the random sample generated with the given
-#   distribution
+#   A numeric vector of with the random sample generated
+#   with the given distribution
 rprobmodel <- function(n, distr, params) {
   result <- tryCatch({
     # Map distribution names to random sample functions
@@ -728,71 +756,177 @@ rprobmodel <- function(n, distr, params) {
   return(result)
 }
 
-# Perform Monte Carlo iterations to estimate multiple parameters of a
-# distribution. The goal is to fit a probability model n times to random samples
-# drawn from the input sample. Each Monte Carlo sample is drawn with or without
-# replacement and has a length equal to the length of the input sample minus
-# one.
+# Perform bootstrap iterations to estimate parameter
+# uncertainty of a distribution. The goal is to fit a
+# probability model n times to random samples drawn from the
+# input sample. Each bootstrap sample is drawn with or without
+# replacement and has a size equal to the length of the input
+# sample (or length - 1 if subsample = TRUE).
 # Args:
 #   x: A numeric vector of data used for bootstrapping.
 #   niters: The number of bootstrap iterations to perform.
-#   dist: A string specifying the distribution to fit. E.g., "norm", "gamma".
-#   method: The method used to fit the distribution. It is passed to fit
-#          _probmodel.
-#   parallel: A logical value indicating whether to run the computation in
-#             parallel (default is FALSE).
-#   replace: A logical value indicating whether to sample with replacement
-#   n_cores: An integer specifying the number of cores to use if parallel is
-#            TRUE. If NULL, defaults to one less than the total available cores.
+#   distr: A string specifying the distribution to fit. E.g., "norm", "gamma".
+#   method: The method used to fit the distribution. It is
+#           passed to fit_probmodel.
+#   parallel: A logical value indicating whether to run the
+#             computation in parallel (default is FALSE).
+#   replace: A logical value indicating whether to sample with
+#            replacement (default is TRUE for standard
+#            bootstrap).
+#   subsample: A logical value indicating whether to use n-1
+#              samples instead of n (default is FALSE for
+#              standard bootstrap).
+#   n_cores: An integer specifying the number of cores to use
+#            if parallel is TRUE. If NULL, defaults to one
+#            less than the total available cores.
+#   seed: An integer to set the random seed for
+#         reproducibility. If NULL, no seed is set.
+#   progress: A logical value indicating whether to show
+#             progress bar (only for non-parallel execution,
+#             default is FALSE).
 #   ...: Additional arguments passed to the fit_probmodel function.
 #
 # Returns:
-#   A data frame with the estimated parameters from each bootstrap iteration.
-#   The rows correspond to the iterations, and columns correspond to the fitted
-#   parameters from the fit_probmodel function.
-bootstrap_probmodel <- function(x, niters, distr, method, parallel = FALSE,
-                                replace = FALSE, n_cores = NULL, ...) {
-  if (parallel == FALSE) {
-    params <- list()
-    for (i in seq(niters)) {
-      xsample <- sample(x, size = length(x) - 1, replace = replace)
-      params[[i]] <- fit_probmodel(xsample, distr = distr, # nolint
-                                   method = method, ...)
-    }
-    params <- t(data.frame(params))
-    rownames(params) <- seq(niters)
-    return(params)
-  } else {
-    # Set up a cluster
-    available_cores <- detectCores()  # Get the total number of available cores
-    if (is.null(n_cores)) {
-      # Default to using all but one core if n_cores is NULL
-      n_cores <- available_cores - 1
-    }
-    # Check if n_cores is valid
-    if (n_cores > available_cores) {
-      stop("Error: n_cores cannot exceed the available cores on this machine.")
-    }
-    cl <- makeCluster(n_cores)
-    # Export necessary variables and functions to the cluster
-    vars <- c("x", "niters", "dist", "method", "fit_probmodel")
-    clusterExport(cl, varlist = vars, envir = environment())
-    clusterEvalQ(cl, {
-      source("fit_utils.R")  # Give all variables of this script to the cluster
-    })
-
-    # Perform the parallel computation using parLapply
-    params <- parLapply(cl, seq(niters), function(i, ...) {
-      xsample <- sample(x, size = length(x) - 1, replace = replace)
-      fit_probmodel(xsample, distr = distr, method = method, ...)
-    }, ...)
-
-    # Stop the cluster
-    stopCluster(cl)
-
-    # Convert the result into a data frame
-    params <- t(data.frame(params))
-    rownames(params) <- seq(niters)
-    return(params)
+#   A data frame with the estimated parameters from each
+#   bootstrap iteration. The rows correspond to the
+#   iterations, and columns correspond to the fitted
+#   parameters from the fit_probmodel function. Returns NULL
+#   if all iterations fail.
+bootstrap_probmodel <- function(x,
+                                 niters,
+                                 distr,
+                                 method,
+                                 parallel = FALSE,
+                                 replace = TRUE,
+                                 subsample = FALSE,
+                                 n_cores = NULL,
+                                 seed = NULL,
+                                 progress = FALSE,
+                                 ...) {
+  # Input validation
+  if (!is.numeric(x) || length(x) < 2) {
+    stop("x must be a numeric vector with at least 2 elements")
   }
+  if (niters < 1) {
+    stop("niters must be at least 1")
+  }
+  if (!distr %in% probmodel_names) {
+    stop(sprintf(
+      "Invalid distribution: '%s'. Options: %s",
+      distr, paste(probmodel_names, collapse = ", ")
+    ))
+  }
+  
+  # Set seed for reproducibility if provided
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+  
+  # Determine sample size
+  sample_size <- if (subsample) length(x) - 1 else length(x)
+  
+  # Remove NA values
+  x <- x[!is.na(x)]
+  
+  if (parallel == FALSE) {
+    # Sequential execution
+    params <- vector("list", niters)
+    
+    # Optional progress bar
+    if (progress && requireNamespace("utils", quietly = TRUE)) {
+      pb <- txtProgressBar(min = 0, max = niters, style = 3)
+    }
+    
+    for (i in seq_len(niters)) {
+      xsample <- sample(x, size = sample_size, replace = replace)
+      params[[i]] <- tryCatch({
+        fit_probmodel(xsample, distr = distr, method = method, ...)
+      }, error = function(e) {
+        rep(NA_real_, probmodel_nparams[[distr]])
+      })
+      
+      if (progress && exists("pb")) {
+        setTxtProgressBar(pb, i)
+      }
+    }
+    
+    if (progress && exists("pb")) {
+      close(pb)
+    }
+  } else {
+    # Parallel execution
+    available_cores <- detectCores()
+    if (is.null(n_cores)) {
+      n_cores <- max(1, available_cores - 1)
+    }
+    
+    # Validate n_cores
+    if (n_cores > available_cores) {
+      warning(sprintf(
+        "n_cores (%d) exceeds available cores (%d). Using %d.",
+        n_cores, available_cores, available_cores
+      ))
+      n_cores <- available_cores
+    }
+    
+    # Set up cluster with error handling
+    cl <- tryCatch({
+      makeCluster(n_cores)
+    }, error = function(e) {
+      stop(sprintf("Failed to create cluster: %s", e$message))
+    })
+    
+    # Ensure cluster is stopped on function exit
+    on.exit(stopCluster(cl), add = TRUE)
+    
+    # Export necessary variables and functions
+    clusterExport(
+      cl,
+      varlist = c(
+        "x", "sample_size", "replace", "distr", "method"
+      ),
+      envir = environment()
+    )
+    
+    # Load required libraries and source files on each worker
+    clusterEvalQ(cl, {
+      library("e1071")
+      library("lmomco")
+      library("MASS")
+      library("survival")
+      library("fitdistrplus")
+      source("fit_utils.R")
+    })
+    
+    # Set seeds for parallel workers if seed is provided
+    if (!is.null(seed)) {
+      clusterSetRNGStream(cl, seed)
+    }
+    
+    # Perform parallel computation with error handling
+    params <- parLapply(cl, seq_len(niters), function(i, ...) {
+      xsample <- sample(x, size = sample_size, replace = replace)
+      tryCatch({
+        fit_probmodel(xsample, distr = distr, method = method, ...)
+      }, error = function(e) {
+        rep(NA_real_, probmodel_nparams[[distr]])
+      })
+    }, ...)
+  }
+  
+  # Convert results to data frame
+  params_matrix <- do.call(rbind, params)
+  
+  # Check if all iterations failed
+  if (all(is.na(params_matrix))) {
+    warning("All bootstrap iterations failed. Returning NULL.")
+    return(NULL)
+  }
+  
+  # Create proper column names
+  param_names <- paste0("param_", seq_len(ncol(params_matrix)))
+  colnames(params_matrix) <- param_names
+  rownames(params_matrix) <- paste0("iter_", seq_len(niters))
+  
+  return(as.data.frame(params_matrix))
 }
