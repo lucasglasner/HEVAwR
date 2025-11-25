@@ -545,6 +545,48 @@ server <- function(input, output, session) {
     create_comparison_plot(rv$comparison_results)
   })
   
+  # Comparison quantiles table
+  output$comparison_quantiles_table <- renderUI({
+    req(rv$comparison_results)
+    req(length(rv$comparison_results) > 0)
+    
+    # Get target return periods from first result
+    first_result <- rv$comparison_results[[1]]
+    target_rp <- rownames(first_result$target_quant)
+    
+    # Build table with distributions as rows and return periods as columns
+    fmt <- function(x) {
+      v <- as.numeric(x)
+      if (is.na(v) || !is.finite(v)) return("—")
+      format(round(v, 3), nsmall = 3)
+    }
+    
+    # Header row with return periods
+    header_row <- tags$tr(
+      tags$th("", style = "text-align: center;"),
+      lapply(target_rp, function(p) 
+        tags$th(as.character(round(as.numeric(p))), 
+                style = "text-align: center;"))
+    )
+    
+    # Data rows for each distribution
+    dist_rows <- lapply(names(rv$comparison_results), function(distr) {
+      result <- rv$comparison_results[[distr]]
+      
+      tags$tr(
+        tags$th(toupper(distr), style = "text-align: center;"),
+        lapply(result$target_quant[, 1], function(v) tags$td(fmt(v)))
+      )
+    })
+    
+    tags$table(
+      class = "table table-bordered table-hover",
+      style = "text-align: center; margin: auto;",
+      tags$thead(header_row),
+      tags$tbody(dist_rows)
+    )
+  })
+  
   # Download comparison plot
   output$download_comparison_plot <- downloadHandler(
     filename = function() {
@@ -753,6 +795,54 @@ server <- function(input, output, session) {
     req(length(rv$method_comparison_results) > 0)
     
     create_method_comparison_plot(rv$method_comparison_results)
+  })
+  
+  # Method comparison quantiles table
+  output$method_comparison_quantiles_table <- renderUI({
+    req(rv$method_comparison_results)
+    req(length(rv$method_comparison_results) > 0)
+    
+    # Get target return periods from first result
+    first_result <- rv$method_comparison_results[[1]]
+    target_rp <- rownames(first_result$target_quant)
+    
+    # Build table with methods as rows and return periods as columns
+    fmt <- function(x) {
+      v <- as.numeric(x)
+      if (is.na(v) || !is.finite(v)) return("—")
+      format(round(v, 3), nsmall = 3)
+    }
+    
+    # Header row with return periods
+    header_row <- tags$tr(
+      tags$th("", style = "text-align: center;"),
+      lapply(target_rp, function(p) 
+        tags$th(as.character(round(as.numeric(p))), 
+                style = "text-align: center;"))
+    )
+    
+    # Data rows for each method
+    method_rows <- lapply(names(rv$method_comparison_results), function(method) {
+      result <- rv$method_comparison_results[[method]]
+      method_label <- switch(method,
+        "lmme" = "L-moments",
+        "mme" = "Method of Moments",
+        "mle" = "Maximum Likelihood",
+        method
+      )
+      
+      tags$tr(
+        tags$th(method_label, style = "text-align: center;"),
+        lapply(result$target_quant[, 1], function(v) tags$td(fmt(v)))
+      )
+    })
+    
+    tags$table(
+      class = "table table-bordered table-hover",
+      style = "text-align: center; margin: auto;",
+      tags$thead(header_row),
+      tags$tbody(method_rows)
+    )
   })
   
   # Download method comparison plot

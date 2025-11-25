@@ -323,6 +323,13 @@ create_method_comparison_tab <- function() {
         plotOutput("method_comparison_plot", height = "450px")
       )
     ),
+    hr(),
+    fluidRow(
+      column(12,
+        h4("Return Period Quantiles", style = "text-align: center;"),
+        uiOutput("method_comparison_quantiles_table")
+      )
+    ),
     br(),
     hr()
   )
@@ -402,6 +409,13 @@ create_model_comparison_tab <- function() {
           class = "btn-sm"
         ),
         plotOutput("comparison_plot", height = "450px")
+      )
+    ),
+    hr(),
+    fluidRow(
+      column(12,
+        h4("Return Period Quantiles", style = "text-align: center;"),
+        uiOutput("comparison_quantiles_table")
       )
     ),
     br(),
