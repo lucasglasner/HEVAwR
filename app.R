@@ -62,16 +62,14 @@ server <- function(input, output, session) {
     input$manual_data
     input$target_rperiods
     
-    n <- length(rv$data)
-    sorted_data <- sort(rv$data, decreasing = TRUE)
-    empirical_prob <- (1:n) / (n + 1)
-    return_period <- 1 / empirical_prob
+    # Build EVA table using the same logic as the analysis
+    eva_table <- build_eva_table(rv$data, remove_zeros = input$handle_zeros)
     
     df <- data.frame(
-      Index = 1:n,
-      Value = sorted_data,
-      `P(exc)` = round(empirical_prob, 3),
-      `T(years)` = round(return_period, 1),
+      Index = 1:nrow(eva_table),
+      Value = eva_table$data,
+      `P(exc)` = round(eva_table$pexc, 3),
+      `T(years)` = round(eva_table$rperiod, 1),
       check.names = FALSE
     )
     

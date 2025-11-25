@@ -119,20 +119,30 @@ build_eva_table <- function(data,
   extracted <- extract_non_na(data, col)
   ndata <- extracted$ndata
   ids <- extracted$ids
-  # Remove zero values
+  
+  # Calculate probability of non-zero values BEFORE filtering
   pnonzero <- 1 - sum(ndata == 0) / length(ndata)
+  
+  # Filter zeros if requested
   if (remove_zeros) {
-    ndata <- ndata[ndata > 0]
-    ids <- ids[ndata > 0]
+    zero_mask <- ndata > 0
+    ndata <- ndata[zero_mask]
+    ids <- ids[zero_mask]
   }
-  norder <- order(ndata, decreasing = TRUE) # Order the data
+  
+  # Order the data
+  norder <- order(ndata, decreasing = TRUE)
   ids  <- ids[norder]
   ndata  <- ndata[norder]
+  
   # Calculate ranks and exceedance probabilities
   ndata_rank <- rank(-ndata, ties.method = "max")
   ndata_pexc <- ndata_rank / (length(ndata) + 1) # Empirical probability
-  if (pnonzero < 1) {
-    ndata_pexc <- ndata_pexc * pnonzero # Adjust for zero values
+  
+  # When handling zeros: multiply by P(non-zero) to get joint probability
+  # P(X > x) = P(X > x | X > 0) * P(X > 0)
+  if (remove_zeros && pnonzero < 1) {
+    ndata_pexc <- ndata_pexc * pnonzero
   }
 
   eva_table <- list(rank = ndata_rank, data = ndata,
