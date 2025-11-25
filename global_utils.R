@@ -150,11 +150,11 @@ get_model_quant <- function(model_pexc,
 #     - target_quant: Data frame of model quantiles at target_rperiods.
 #     - metrics: Data frame of goodness-of-fit metrics.
 run_probmodel <- function(data,
-                           method,
-                           distr,
-                           model_rperiods,
-                           target_rperiods,
-                           fix_zeros) {
+                          method,
+                          distr,
+                          model_rperiods,
+                          target_rperiods,
+                          fix_zeros) {
   name <- paste(distr, method, sep = "_")
   model_pexc <- 1 / model_rperiods
   eva_table <- build_eva_table(data, remove_zeros = fix_zeros)
