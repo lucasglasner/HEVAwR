@@ -15,21 +15,20 @@ create_sidebar_ui <- function() {
   sidebarPanel(
     width = 2,
     # Data upload section
-    h4("1. Data Input", style = "text-align: center;"),
+    h5("Data Input"),
     fileInput(
-      "datafile", "Upload CSV/TXT File",
+      "datafile", NULL,
       accept = c(".csv", ".txt")
     ),
-    helpText(
-      "Upload a file with a single column of numeric values"
-    ),
+    p("Upload a file with a single column of numeric values", 
+      style = "font-size: 0.9em; color: #666;"),
     # Manual data input option
     textAreaInput(
       "manual_data", "Or paste data (one value per line):",
       rows = 5, placeholder = "10.5\n12.3\n15.7\n..."
     ),
     hr(),
-    h4("2. Return Periods", style = "text-align: center;"),
+    h5("Return Periods"),
     textInput(
       "target_rperiods",
       "Target return periods (comma-separated):",
@@ -110,15 +109,16 @@ create_fitting_results_tab <- function() {
     fluidRow(
       column(4,
         tags$div(
-          style = "height: 500px; overflow-y: auto; padding-right: 10px;",
+          style = "height: calc(100vh - 250px); overflow-y: auto; padding-right: 10px;",
           h4("Fitted Parameters (Initial Fit)", style = "text-align: center;"),
           verbatimTextOutput("initial_params"),
           hr(),
+          h4("Goodness-of-Fit Tests", style = "text-align: center;"),
+          verbatimTextOutput("gof_tests"),
+          hr(),
           h4("Manual Parameter Adjustment", style = "text-align: center;"),
-          helpText(
-            "Adjust parameters manually and click",
-            "'Recompute' to update results"
-          ),
+          p("Adjust parameters manually and click 'Recompute' to update results",
+            style = "font-size: 0.9em; color: #666; text-align: center;"),
           uiOutput("param_controls"),
           actionButton(
             "recompute",
@@ -128,10 +128,8 @@ create_fitting_results_tab <- function() {
           ),
           hr(),
           h4("Confidence Intervals", style = "text-align: center;"),
-          helpText(
-            "Compute bootstrap confidence intervals for",
-            "uncertainty quantification"
-          ),
+          p("Compute bootstrap confidence intervals for uncertainty quantification",
+            style = "font-size: 0.9em; color: #666; text-align: center;"),
           fluidRow(
             column(
               4,
@@ -200,7 +198,7 @@ create_plots_tab <- function() {
     fluidRow(
       column(
         6,
-        h4("Probability Plot (Value vs Exceedance Probability)", style = "text-align: center;"),
+        h4("Probability Plot (Value vs Exceedance Probability)"),
         downloadButton(
           "download_prob_pexc",
           "Download Plot",
@@ -210,7 +208,7 @@ create_plots_tab <- function() {
       ),
       column(
         6,
-        h4("Q-Q Plot", style = "text-align: center;"),
+        h4("Q-Q Plot"),
         downloadButton(
           "download_qq",
           "Download Plot",
@@ -223,7 +221,7 @@ create_plots_tab <- function() {
     fluidRow(
       column(
         6,
-        h4("Histogram with Fitted PDF", style = "text-align: center;"),
+        h4("Histogram with Fitted PDF"),
         downloadButton(
           "download_hist",
           "Download Plot",
@@ -233,7 +231,7 @@ create_plots_tab <- function() {
       ),
       column(
         6,
-        h4("Empirical vs Fitted CDF", style = "text-align: center;"),
+        h4("Empirical vs Fitted CDF"),
         downloadButton(
           "download_cdf",
           "Download Plot",
@@ -255,15 +253,14 @@ create_plots_tab <- function() {
 #   comparison probability plot.
 create_method_comparison_tab <- function() {
   tabPanel("Method Comparison",
-    h4("Multi-Method Comparison", style = "text-align: center;"),
+    h3("Multi-Method Comparison", style = "text-align: center;"),
     fluidRow(
       column(12,
-        h5("Select Distribution and Methods", 
-           style = "text-align: center;"),
+        h4("Select Distribution and Methods", style = "text-align: center;"),
         fluidRow(
           column(4, offset = 2,
             selectInput("method_comparison_distribution",
-                       "Distribution:",
+                       "Select Distribution:",
                        choices = c(
                          "Normal" = "norm",
                          "Lognormal" = "lognorm",
@@ -276,9 +273,10 @@ create_method_comparison_tab <- function() {
                        selected = "gev")
           ),
           column(4,
+            h5("Fitting Methods:"),
             checkboxGroupInput(
               "compare_methods",
-              "Fitting Methods:",
+              NULL,
               choices = c(
                 "L-moments" = "lmme",
                 "Method of Moments" = "mme",
@@ -296,6 +294,12 @@ create_method_comparison_tab <- function() {
             "Run Comparison",
             class = "btn-primary",
             icon = icon("chart-line")
+          ),
+          downloadButton(
+            "download_method_comparison_report",
+            "Download Excel Report",
+            class = "btn-success",
+            icon = icon("file-excel")
           )
         ),
         hr()
@@ -303,15 +307,14 @@ create_method_comparison_tab <- function() {
     ),
     fluidRow(
       column(3,
-        h5("Method Parameters", style = "text-align: center;"),
+        h4("Method Parameters", style = "text-align: center;"),
         tags$div(
           style = "max-height: 450px; overflow-y: auto;",
           uiOutput("method_comparison_params_ui")
         )
       ),
       column(9,
-        h5("Comparison Probability Plot", 
-           style = "text-align: center;"),
+        h4("Comparison Probability Plot", style = "text-align: center;"),
         downloadButton(
           "download_method_comparison_plot",
           "Download Plot",
@@ -333,11 +336,10 @@ create_method_comparison_tab <- function() {
 #   plot.
 create_model_comparison_tab <- function() {
   tabPanel("Model Comparison",
-    h4("Multi-Distribution Comparison", style = "text-align: center;"),
+    h3("Multi-Distribution Comparison", style = "text-align: center;"),
     fluidRow(
       column(12,
-        h5("Select Distributions to Compare", 
-           style = "text-align: center;"),
+        h4("Select Distributions to Compare", style = "text-align: center;"),
         fluidRow(
           column(6, offset = 3,
             checkboxGroupInput(
@@ -373,6 +375,12 @@ create_model_comparison_tab <- function() {
             "Run Comparison",
             class = "btn-primary",
             icon = icon("chart-line")
+          ),
+          downloadButton(
+            "download_model_comparison_report",
+            "Download Excel Report",
+            class = "btn-success",
+            icon = icon("file-excel")
           )
         ),
         hr()
@@ -380,15 +388,14 @@ create_model_comparison_tab <- function() {
     ),
     fluidRow(
       column(3,
-        h5("Distribution Parameters", style = "text-align: center;"),
+        h4("Distribution Parameters", style = "text-align: center;"),
         tags$div(
           style = "max-height: 450px; overflow-y: auto;",
           uiOutput("comparison_params_ui")
         )
       ),
       column(9,
-        h5("Comparison Probability Plot", 
-           style = "text-align: center;"),
+        h4("Comparison Probability Plot", style = "text-align: center;"),
         downloadButton(
           "download_comparison_plot",
           "Download Plot",
@@ -410,8 +417,8 @@ create_ui <- function() {
   fluidPage(
     theme = shinytheme("flatly"),
     titlePanel(
-      div(style = "text-align: center;",
-          "Extreme Value Analysis - Distribution Fitting")
+      div("Extreme Value Analysis - Distribution Fitting Tool",
+          style = "text-align: center;")
     ),
     sidebarLayout(
       create_sidebar_ui(),

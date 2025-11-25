@@ -88,7 +88,8 @@ server <- function(input, output, session) {
       format(round(v, 3), nsmall = 3)
     }
     tagList(
-      h5("(Non-zero values only):"),
+      h5("(Non-zero values only)", 
+         style = "text-align: center;"),
       tags$table(
         class = "table table-bordered table-hover",
         style = "text-align: center; margin: auto; max-width: 800px;",
@@ -155,7 +156,10 @@ server <- function(input, output, session) {
     cat("Method:", input$method, "\n\n")
     cat("Parameters:\n")
     print(round(rv$initial_params, 3))
-    cat("\nGoodness-of-Fit Tests:\n")
+  })
+  
+  output$gof_tests <- renderPrint({
+    req(rv$results)
     gof <- run_gof_tests(rv$data, rv$results$distr, 
                          as.numeric(rv$results$params))
     for (i in 1:nrow(gof)) {
@@ -175,7 +179,8 @@ server <- function(input, output, session) {
     req(rv$results)
     req(rv$fitted_params)
     
-    rv$ci_results <- NULL
+    # Keep CI results as reference - don't clear them
+    # CIs from fitted parameters serve as uncertainty bounds guide
     
     n_params <- length(rv$fitted_params)
     manual_params <- sapply(1:n_params, function(i) {
@@ -285,8 +290,7 @@ server <- function(input, output, session) {
 })  # ============= Plot Outputs ============= #
   output$prob_plot_title <- renderUI({
     req(rv$results)
-    distr_upper <- toupper(rv$results$distr)
-    h4(paste("Probability Plot -", distr_upper), 
+    h4(paste("Probability Plot -", toupper(rv$results$distr)), 
        style = "text-align: center;")
   })
   
@@ -315,7 +319,8 @@ server <- function(input, output, session) {
   
   output$qq_plot <- renderPlot({
     req(rv$results)
-    create_qq_plot(rv$results$eva_table, rv$results$distr, rv$results$params)
+    create_qq_plot(rv$results$eva_table, rv$results$distr, 
+                   rv$results$params)
   })
   
   output$hist_plot <- renderPlot({
@@ -329,7 +334,8 @@ server <- function(input, output, session) {
   
   output$cdf_plot <- renderPlot({
     req(rv$results)
-    create_cdf_plot(rv$results$eva_table, rv$results$distr, rv$results$params)
+    create_cdf_plot(rv$results$eva_table, rv$results$distr, 
+                    rv$results$params)
   })
   
   # ============= Download Handlers ============= #
@@ -478,13 +484,18 @@ server <- function(input, output, session) {
                                       font-size: 13px;"),
           lapply(seq_along(param_names), function(i) {
             param_id <- paste0("comp_", distr, "_param", i)
+            # First two parameters (location, scale) use 2 decimals
+            # Other parameters (shape, etc.) use 4 decimals
+            decimals <- if (i <= 2) 2 else 4
+            step_size <- if (i <= 2) 0.01 else 0.001
+            
             tags$div(
               style = "margin-bottom: 5px;",
               numericInput(
                 param_id,
                 paste0(param_names[i], ":"),
-                value = round(as.numeric(result$params[i]), 4),
-                step = 0.001
+                value = round(as.numeric(result$params[i]), decimals),
+                step = step_size
               )
             )
           }),
@@ -550,6 +561,80 @@ server <- function(input, output, session) {
     }
   )
   
+  # Download model comparison Excel report
+  output$download_model_comparison_report <- downloadHandler(
+    filename = function() {
+      paste0("Model_Comparison_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
+    },
+    content = function(file) {
+      req(rv$comparison_results)
+      req(length(rv$comparison_results) > 0)
+      
+      # Create workbook
+      wb <- createWorkbook()
+      
+      # Add worksheets (same structure as main fitting tool)
+      addWorksheet(wb, "EVA_Table")
+      addWorksheet(wb, "Statistics")
+      addWorksheet(wb, "CalibrationParams")
+      addWorksheet(wb, "FitModel")
+      addWorksheet(wb, "FitResults")
+      addWorksheet(wb, "PerformanceMetrics")
+      
+      # Get first result for common data
+      first_result <- rv$comparison_results[[1]]
+      
+      # 1. EVA_Table - same for all distributions
+      writeData(wb, "EVA_Table", first_result$eva_table)
+      
+      # 2. Statistics - same for all distributions
+      writeData(wb, "Statistics", first_result$statistics)
+      
+      # 3. CalibrationParams - all distributions as rows
+      param_rows <- lapply(names(rv$comparison_results), function(distr) {
+        result <- rv$comparison_results[[distr]]
+        data.frame(
+          distr = paste(distr, result$method, sep = "_"),
+          loc = ifelse(length(result$params) >= 1, result$params[1], NA),
+          scale = ifelse(length(result$params) >= 2, result$params[2], NA),
+          shape = ifelse(length(result$params) >= 3, result$params[3], NA),
+          stringsAsFactors = FALSE
+        )
+      })
+      param_df <- do.call(rbind, param_rows)
+      writeData(wb, "CalibrationParams", param_df)
+      
+      # 4. FitModel - return periods as rows, distributions as columns
+      model_rp <- rownames(first_result$model_quant)
+      fitmodel_df <- data.frame(T = model_rp, stringsAsFactors = FALSE)
+      for (distr in names(rv$comparison_results)) {
+        result <- rv$comparison_results[[distr]]
+        fitmodel_df[[paste(distr, result$method, sep = "_")]] <- result$model_quant[, 1]
+      }
+      writeData(wb, "FitModel", fitmodel_df)
+      
+      # 5. FitResults - target return periods as rows, distributions as columns
+      target_rp <- rownames(first_result$target_quant)
+      fitresults_df <- data.frame(T = target_rp, stringsAsFactors = FALSE)
+      for (distr in names(rv$comparison_results)) {
+        result <- rv$comparison_results[[distr]]
+        fitresults_df[[paste(distr, result$method, sep = "_")]] <- result$target_quant[, 1]
+      }
+      writeData(wb, "FitResults", fitresults_df)
+      
+      # 6. PerformanceMetrics - metrics as rows, distributions as columns
+      metric_names <- rownames(first_result$metrics)
+      metrics_df <- data.frame(metric = metric_names, stringsAsFactors = FALSE)
+      for (distr in names(rv$comparison_results)) {
+        result <- rv$comparison_results[[distr]]
+        metrics_df[[paste(distr, result$method, sep = "_")]] <- result$metrics[, 1]
+      }
+      writeData(wb, "PerformanceMetrics", metrics_df)
+      
+      saveWorkbook(wb, file = file, overwrite = TRUE)
+    }
+  )
+  
   # ============= Method Comparison ============= #
   
   # Run comparison analysis for selected methods
@@ -607,13 +692,18 @@ server <- function(input, output, session) {
                                       font-size: 13px;"),
           lapply(seq_along(param_names), function(i) {
             param_id <- paste0("mcomp_", method, "_param", i)
+            # First two parameters (location, scale) use 2 decimals
+            # Other parameters (shape, etc.) use 4 decimals
+            decimals <- if (i <= 2) 2 else 4
+            step_size <- if (i <= 2) 0.01 else 0.001
+            
             tags$div(
               style = "margin-bottom: 5px;",
               numericInput(
                 param_id,
                 paste0(param_names[i], ":"),
-                value = round(as.numeric(result$params[i]), 4),
-                step = 0.001
+                value = round(as.numeric(result$params[i]), decimals),
+                step = step_size
               )
             )
           }),
@@ -678,6 +768,81 @@ server <- function(input, output, session) {
       req(rv$method_comparison_results)
       p <- create_method_comparison_plot(rv$method_comparison_results)
       ggsave(file, plot = p, width = 12, height = 7, dpi = 300)
+    }
+  )
+  
+  # Download method comparison Excel report
+  output$download_method_comparison_report <- downloadHandler(
+    filename = function() {
+      paste0("Method_Comparison_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
+    },
+    content = function(file) {
+      req(rv$method_comparison_results)
+      req(length(rv$method_comparison_results) > 0)
+      
+      # Create workbook
+      wb <- createWorkbook()
+      
+      # Add worksheets (same structure as main fitting tool)
+      addWorksheet(wb, "EVA_Table")
+      addWorksheet(wb, "Statistics")
+      addWorksheet(wb, "CalibrationParams")
+      addWorksheet(wb, "FitModel")
+      addWorksheet(wb, "FitResults")
+      addWorksheet(wb, "PerformanceMetrics")
+      
+      # Get first result for common data
+      first_result <- rv$method_comparison_results[[1]]
+      distr <- input$method_comparison_distribution
+      
+      # 1. EVA_Table - same for all methods
+      writeData(wb, "EVA_Table", first_result$eva_table)
+      
+      # 2. Statistics - same for all methods
+      writeData(wb, "Statistics", first_result$statistics)
+      
+      # 3. CalibrationParams - all methods as rows
+      param_rows <- lapply(names(rv$method_comparison_results), function(method) {
+        result <- rv$method_comparison_results[[method]]
+        data.frame(
+          distr = paste(distr, method, sep = "_"),
+          loc = ifelse(length(result$params) >= 1, result$params[1], NA),
+          scale = ifelse(length(result$params) >= 2, result$params[2], NA),
+          shape = ifelse(length(result$params) >= 3, result$params[3], NA),
+          stringsAsFactors = FALSE
+        )
+      })
+      param_df <- do.call(rbind, param_rows)
+      writeData(wb, "CalibrationParams", param_df)
+      
+      # 4. FitModel - return periods as rows, methods as columns
+      model_rp <- rownames(first_result$model_quant)
+      fitmodel_df <- data.frame(T = model_rp, stringsAsFactors = FALSE)
+      for (method in names(rv$method_comparison_results)) {
+        result <- rv$method_comparison_results[[method]]
+        fitmodel_df[[paste(distr, method, sep = "_")]] <- result$model_quant[, 1]
+      }
+      writeData(wb, "FitModel", fitmodel_df)
+      
+      # 5. FitResults - target return periods as rows, methods as columns
+      target_rp <- rownames(first_result$target_quant)
+      fitresults_df <- data.frame(T = target_rp, stringsAsFactors = FALSE)
+      for (method in names(rv$method_comparison_results)) {
+        result <- rv$method_comparison_results[[method]]
+        fitresults_df[[paste(distr, method, sep = "_")]] <- result$target_quant[, 1]
+      }
+      writeData(wb, "FitResults", fitresults_df)
+      
+      # 6. PerformanceMetrics - metrics as rows, methods as columns
+      metric_names <- rownames(first_result$metrics)
+      metrics_df <- data.frame(metric = metric_names, stringsAsFactors = FALSE)
+      for (method in names(rv$method_comparison_results)) {
+        result <- rv$method_comparison_results[[method]]
+        metrics_df[[paste(distr, method, sep = "_")]] <- result$metrics[, 1]
+      }
+      writeData(wb, "PerformanceMetrics", metrics_df)
+      
+      saveWorkbook(wb, file = file, overwrite = TRUE)
     }
   )
 }

@@ -121,6 +121,7 @@ create_prob_plot_rperiod <- function(eva_table,
 #   model_pexc: Numeric vector of model exceedance probabilities.
 #   model_quant: Numeric vector of model-predicted quantiles.
 #   distr: Character string specifying the distribution name.
+#   lang: Language code ("en" or "es"). Default is "en".
 # Returns:
 #   A ggplot2 object displaying the probability plot with
 #   exceedance probability scale and empirical points.

@@ -63,11 +63,16 @@ create_param_controls_ui <- function(fitted_params,
   
   fluidRow(
     lapply(1:n_params, function(i) {
+      # First two parameters (location, scale) use 2 decimals
+      # Other parameters (shape, etc.) use 3 decimals
+      decimals <- if (i <= 2) 2 else 3
+      step_size <- if (i <= 2) 0.01 else 0.001
+      
       column(4,
         numericInput(paste0("manual_param_", i), 
                     param_names[i], 
-                    value = round(fitted_params[i], 3),
-                    step = 0.001)
+                    value = round(fitted_params[i], decimals),
+                    step = step_size)
       )
     })
   )
