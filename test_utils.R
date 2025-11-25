@@ -1,18 +1,7 @@
 source("fit_utils.R")
 library("goftest")
 
-# Compute the likelihood value of a given sample and given distribution
-# Args:
-#   x: vector with observations
-#   distr: A string specifying the distribution. Must be one of: "norm",
-#          "lognorm", "gamma", "pearson3", "logpearson3", "gumbel", or "gev".
-#   params: A vector or list of parameters required by the distribution.
-#           The number and order of parameters depend on the selected
-#           distribution.
-#   log: whether to return the log-likelihood or not. Defaults to FALSE
-#
-# Returns:
-#   A float with the likelihood function value
+# Likelihood (optionally log) for sample under distribution.
 likelihood <- function(x, distr, params, log = FALSE) {
   dfun <- dprobmodel(x, distr, params) # nolint
   lh <- prod(dfun)
@@ -23,33 +12,13 @@ likelihood <- function(x, distr, params, log = FALSE) {
   }
 }
 
-# Compute the Akaike Information Criterion (AIC)
-# Args:
-#   x: vector with observations
-#   distr: A string specifying the distribution. Must be one of: "norm",
-#          "lognorm", "gamma", "pearson3", "logpearson3", "gumbel", or "gev".
-#   params: A vector or list of parameters required by the distribution.
-#           The number and order of parameters depend on the selected
-#           distribution.
-#
-# Returns:
-#   A float with the AIC value
+# AIC score = 2k - 2 logL.
 aic_score <- function(x, distr, params) {
   loglh <- likelihood(x, distr, params, log = TRUE)
   return(2 * length(params) - 2 * loglh)
 }
 
-# Compute the Bayesian Information Criterion (BIC)
-# Args:
-#   x: vector with observations
-#   distr: A string specifying the distribution. Must be one of: "norm",
-#          "lognorm", "gamma", "pearson3", "logpearson3", "gumbel", or "gev".
-#   params: A vector or list of parameters required by the distribution.
-#           The number and order of parameters depend on the selected
-#           distribution.
-#
-# Returns:
-#   A float with the AIC value
+# BIC score = k log(n) - 2 logL.
 bic_score <- function(x, distr, params) {
   loglh <- likelihood(x, distr, params, log = TRUE)
   return(log(length(x)) * length(params) - 2 * loglh)
@@ -57,20 +26,7 @@ bic_score <- function(x, distr, params) {
 
 
 # (Chi-squared GOF test removed from package; retained tests: KS, CVM, AD.)
-# Perform a Kolmogorov-Smirnov goodness-of-fit test for the given sample and
-# probability model
-# Args:
-#   x: vector with observations
-#   distr: A string specifying the distribution. Must be one of: "norm",
-#          "lognorm", "gamma", "pearson3", "logpearson3", "gumbel", or "gev".
-#   params: A vector or list of parameters required by the distribution.
-#           The number and order of parameters depend on the selected
-#           distribution.
-#   alpha: Confidence level. Default to 0.05.
-#
-# Returns:
-#   A list with the KS statistic, the pvalue and a bool if the model pass the
-#   test or not (0.05 confidence by default).
+# Kolmogorov-Smirnov GOF test wrapper.
 ks_gof <- function(x, distr, params, alpha = 0.05) {
   ks <- suppressWarnings(ks.test(x, pprobmodel, distr, params)) # nolint
   return(list(
@@ -80,20 +36,7 @@ ks_gof <- function(x, distr, params, alpha = 0.05) {
   ))
 }
 
-# Perform a Cramer-Von-Misses goodness-of-fit test for the given sample and
-# probability model
-# Args:
-#   x: vector with observations
-#   distr: A string specifying the distribution. Must be one of: "norm",
-#          "lognorm", "gamma", "pearson3", "logpearson3", "gumbel", or "gev".
-#   params: A vector or list of parameters required by the distribution.
-#           The number and order of parameters depend on the selected
-#           distribution.
-#   alpha: Confidence level. Default to 0.05.
-#
-# Returns:
-#   A list with the CVM statistic, the pvalue and a bool if the model pass the
-#   test or not (0.05 confidence by default).
+# Cramer–Von Mises GOF test wrapper.
 cvm_gof <- function(x, distr, params, alpha = 0.05) {
   cvm <- cvm.test(x, pprobmodel, distr, params) # nolint
   return(list(
@@ -103,20 +46,7 @@ cvm_gof <- function(x, distr, params, alpha = 0.05) {
   ))
 }
 
-# Perform the Anderson-Darling goodness-of-fit test for the given sample and
-# probability model
-# Args:
-#   x: vector with observations
-#   distr: A string specifying the distribution. Must be one of: "norm",
-#          "lognorm", "gamma", "pearson3", "logpearson3", "gumbel", or "gev".
-#   params: A vector or list of parameters required by the distribution.
-#           The number and order of parameters depend on the selected
-#           distribution.
-#   alpha: Confidence level. Default to 0.05.
-#
-# Returns:
-#   A list with the AD statistic, the pvalue and a bool if the model pass the
-#   test or not (0.05 confidence by default).
+# Anderson-Darling GOF test wrapper.
 ad_gof <- function(x, distr, params, alpha = 0.05) {
   ad <- ad.test(x, pprobmodel, distr, params) # nolint
   return(list(
@@ -126,26 +56,7 @@ ad_gof <- function(x, distr, params, alpha = 0.05) {
   ))
 }
 
-# Evaluate a probability model in terms of score metrics and goodness of fit
-# statistical tests.
-# Scores: pearson rsquared, root mean squared error, mean bias, akaike
-#         information criterion (AIC), bayesian information criterion (BIC).
-# GOF-Tests: Kolmogorov-Smirnov, Cramer-Von Mises and Anderson-Darling.
-# Args:
-#   x: vector with observations
-#   y: vector with simulated values
-#   distr: A string specifying the distribution. Must be one of: "norm",
-#          "lognorm", "gamma", "pearson3", "logpearson3", "gumbel", or "gev".
-#   params: A vector or list of parameters required by the distribution.
-#           The number and order of parameters depend on the selected
-#           distribution.
-#   nbins: Number of intervals to consider when computing the sample histogram.
-#          By default it uses the Freedman–Diaconis rule.
-#   alpha: Confidence level. Default to 0.05.
-#
-# Returns:
-#   A dataframe with the different scores and statistical test metrics (pvalues
-#   and a bool telling if the model is accepted or rejected)
+# Compute metrics (r2, rmse, bias, AIC, BIC) + GOF (KS, CVM, AD).
 gofmetrics <- function(x, y, distr, params,
                         alpha = 0.05, nbins = NULL) {
   # Deal with missing values

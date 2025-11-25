@@ -1,8 +1,6 @@
-# EVA Shiny App - Main Application File
-# Extreme Value Analysis with Distribution Fitting
-# Modular version with organized code structure
+# Main Shiny app (EVA distribution fitting).
 
-# ==================== Load Required Libraries ==================== #
+# ==================== Libraries ==================== #
 library(shiny)
 library(shinythemes)
 library(DT)
@@ -10,7 +8,7 @@ library(ggplot2)
 library(openxlsx)
 library(tibble)
 
-# ==================== Source Application Modules ==================== #
+# ==================== Source Modules ==================== #
 source("fit_utils.R")
 source("test_utils.R")
 source("global_utils.R")
@@ -18,13 +16,13 @@ source("app_ui.R")
 source("app_server_functions.R")
 source("app_plot_functions.R")
 
-# ==================== Define UI ==================== #
+# ==================== UI ==================== #
 ui <- create_ui()
 
-# ==================== Define Server ==================== #
+# ==================== Server ==================== #
 server <- function(input, output, session) {
   
-  # ============= Reactive Values ============= #
+  # Reactive values store data/results.
   rv <- reactiveValues(
     data = NULL,
     results = NULL,
@@ -35,7 +33,7 @@ server <- function(input, output, session) {
     method_comparison_results = list()
   )
   
-  # ============= Data Loading ============= #
+  # Data loading from file or text.
   observe({
     if (!is.null(input$datafile)) {
       rv$data <- load_data_from_file(input$datafile$datapath)
@@ -44,7 +42,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # ============= Data Preview Outputs ============= #
+  # Data preview outputs.
   output$data_summary <- renderPrint({
     req(rv$data)
     # Add dependencies to trigger refresh
@@ -141,7 +139,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # ============= Clear Results on Distribution/Method Change ============= #
+  # Clear results when distribution/method changes & sync aux selectors.
   # Sync Fitting Tool and Auxiliary Plots selectors
   observeEvent(input$distribution, {
     updateSelectInput(session, "aux_distribution", selected = input$distribution)
@@ -168,7 +166,7 @@ server <- function(input, output, session) {
     updateSelectInput(session, "method", selected = input$aux_method)
   }, ignoreInit = TRUE)
   
-  # ============= Main Analysis ============= #
+  # Run main analysis.
   observeEvent(input$run_analysis, {
     req(rv$data)
     
@@ -188,7 +186,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # Auxiliary Plots Run Analysis (same as main)
+  # Auxiliary plots: run analysis.
   observeEvent(input$aux_run_analysis, {
     req(rv$data)
     
@@ -208,7 +206,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # ============= Parameter Controls ============= #
+  # Parameter controls UI/rendering.
   output$initial_params <- renderPrint({
     req(rv$initial_params)
     req(rv$results)
@@ -239,7 +237,7 @@ server <- function(input, output, session) {
     create_param_controls_ui(rv$fitted_params, input$distribution)
   })
   
-  # ============= Recompute with Manual Parameters ============= #
+  # Recompute using manual params.
   observeEvent(input$recompute, {
     req(rv$results)
     req(rv$fitted_params)
@@ -260,7 +258,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # ============= Confidence Intervals ============= #
+  # Bootstrap confidence intervals.
   observeEvent(input$compute_ci, {
     req(rv$data)
     req(rv$results)
@@ -297,13 +295,13 @@ server <- function(input, output, session) {
     })
   })
   
-  # ============= Reset Y-axis Limits ============= #
+  # Reset custom ylim.
   observeEvent(input$reset_ylim, {
     updateNumericInput(session, "ylim_min", value = NA)
     updateNumericInput(session, "ylim_max", value = NA)
   })
   
-  # ============= GOF Tests and Tables ============= #
+  # Quantiles table and plot outputs.
   output$quantiles_table <- renderUI({
   req(rv$results)
   qt <- format_quantiles_table(rv$results$target_quant, rv$ci_results)
@@ -401,7 +399,7 @@ server <- function(input, output, session) {
   output$qq_plot <- renderPlot({
     req(rv$results)
     create_qq_plot(rv$results$eva_table, rv$results$distr, 
-                   rv$results$params, input$data_name)
+                   rv$results$params, rv$results$method, input$data_name)
   })
   
   output$hist_plot <- renderPlot({
@@ -410,6 +408,7 @@ server <- function(input, output, session) {
       rv$results$eva_table,
       rv$results$distr,
       rv$results$params,
+      rv$results$method,
       input$data_name
     )
   })
@@ -417,19 +416,15 @@ server <- function(input, output, session) {
   output$cdf_plot <- renderPlot({
     req(rv$results)
     create_cdf_plot(rv$results$eva_table, rv$results$distr, 
-                    rv$results$params, input$data_name)
+                    rv$results$params, rv$results$method, input$data_name)
   })
   
-  # ============= Download Handlers ============= #
+  # Download handlers.
   
   # Excel Report (Fitting Tool)
   output$download_report <- downloadHandler(
     filename = function() {
-      data_name <- if (!is.null(input$data_name) && input$data_name != "") {
-        gsub("[^A-Za-z0-9_-]", "_", input$data_name)
-      } else {
-        "EVA_Data"
-      }
+      data_name <- sanitize_data_name(input$data_name)
       paste0(data_name, "_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
     },
     content = function(file) {
@@ -441,11 +436,7 @@ server <- function(input, output, session) {
   # Excel Report (Auxiliary Plots - same as Fitting Tool)
   output$aux_download_report <- downloadHandler(
     filename = function() {
-      data_name <- if (!is.null(input$data_name) && input$data_name != "") {
-        gsub("[^A-Za-z0-9_-]", "_", input$data_name)
-      } else {
-        "EVA_Data"
-      }
+      data_name <- sanitize_data_name(input$data_name)
       paste0(data_name, "_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
     },
     content = function(file) {
@@ -468,7 +459,8 @@ server <- function(input, output, session) {
         distr = rv$results$distr,
         metrics = rv$results$metrics,
         ci_results = rv$ci_results,
-        method = rv$results$method
+        method = rv$results$method,
+        data_name = input$data_name
       )
       ggsave(file, plot = p, width = 10, height = 6, dpi = 300)
     }
@@ -487,7 +479,8 @@ server <- function(input, output, session) {
         model_pexc = 1 / model_rperiods,
         model_quant = rv$results$model_quant[, 1],
         distr = rv$results$distr,
-        method = rv$results$method
+        method = rv$results$method,
+        data_name = input$data_name
       )
       ggsave(file, plot = p, width = 10, height = 6, dpi = 300)
     }
@@ -503,7 +496,9 @@ server <- function(input, output, session) {
       p <- create_qq_plot(
         rv$results$eva_table,
         rv$results$distr,
-        rv$results$params
+        rv$results$params,
+        rv$results$method,
+        input$data_name
       )
       ggsave(file, plot = p, width = 10, height = 6, dpi = 300)
     }
@@ -519,7 +514,9 @@ server <- function(input, output, session) {
       p <- create_histogram_plot(
         rv$results$eva_table,
         rv$results$distr,
-        rv$results$params
+        rv$results$params,
+        rv$results$method,
+        input$data_name
       )
       ggsave(file, plot = p, width = 10, height = 6, dpi = 300)
     }
@@ -535,13 +532,15 @@ server <- function(input, output, session) {
       p <- create_cdf_plot(
         rv$results$eva_table,
         rv$results$distr,
-        rv$results$params
+        rv$results$params,
+        rv$results$method,
+        input$data_name
       )
       ggsave(file, plot = p, width = 10, height = 6, dpi = 300)
     }
   )
   
-  # ============= Model Comparison ============= #
+  # Model comparison logic.
   
   # Run comparison analysis for selected distributions
   observeEvent(input$run_comparison, {
@@ -703,7 +702,7 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       req(rv$comparison_results)
-      p <- create_comparison_plot(rv$comparison_results)
+      p <- create_comparison_plot(rv$comparison_results, title_override = "Comparison Probability Plot")
       ggsave(file, plot = p, width = 12, height = 7, dpi = 300)
     }
   )
@@ -711,11 +710,7 @@ server <- function(input, output, session) {
   # Download model comparison Excel report
   output$download_model_comparison_report <- downloadHandler(
     filename = function() {
-      data_name <- if (!is.null(input$data_name) && input$data_name != "") {
-        gsub("[^A-Za-z0-9_-]", "_", input$data_name)
-      } else {
-        "EVA_Data"
-      }
+      data_name <- sanitize_data_name(input$data_name)
       paste0(data_name, "_Model_Comparison_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
     },
     content = function(file) {
@@ -787,7 +782,7 @@ server <- function(input, output, session) {
     }
   )
   
-  # ============= Method Comparison ============= #
+  # Method comparison logic.
   
   # Run comparison analysis for selected methods
   observeEvent(input$run_method_comparison, {
@@ -966,7 +961,7 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       req(rv$method_comparison_results)
-      p <- create_method_comparison_plot(rv$method_comparison_results)
+      p <- create_method_comparison_plot(rv$method_comparison_results, title_override = "Comparison Probability Plot")
       ggsave(file, plot = p, width = 12, height = 7, dpi = 300)
     }
   )
@@ -974,11 +969,7 @@ server <- function(input, output, session) {
   # Download method comparison Excel report
   output$download_method_comparison_report <- downloadHandler(
     filename = function() {
-      data_name <- if (!is.null(input$data_name) && input$data_name != "") {
-        gsub("[^A-Za-z0-9_-]", "_", input$data_name)
-      } else {
-        "EVA_Data"
-      }
+      data_name <- sanitize_data_name(input$data_name)
       paste0(data_name, "_Method_Comparison_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
     },
     content = function(file) {
@@ -1052,5 +1043,5 @@ server <- function(input, output, session) {
   )
 }
 
-# ==================== Run Application ==================== #
+# ==================== Run App ==================== #
 shinyApp(ui = ui, server = server)

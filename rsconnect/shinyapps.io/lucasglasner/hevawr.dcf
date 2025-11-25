@@ -5,6 +5,6 @@ account: lucasglasner
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 16166714
-bundleId: 11232418
+bundleId: 11232672
 url: https://lucasglasner.shinyapps.io/hevawr/
 version: 1

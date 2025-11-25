@@ -6,12 +6,7 @@ library(scales)
 
 # ==================== Plot Theme Configuration ==================== #
 
-# Get a consistent ggplot2 theme for all plots.
-# Args:
-#   base_size: Numeric value for base font size. Default is 16.
-# Returns:
-#   A ggplot2 theme object with customized title, axis text, and
-#   base font settings.
+# Consistent ggplot2 theme.
 get_plot_theme <- function(base_size = 16) {
   theme_minimal(base_size = base_size) +
     theme(
@@ -23,13 +18,7 @@ get_plot_theme <- function(base_size = 16) {
 
 # ==================== Metrics Label Helper ==================== #
 
-# Create a formatted label displaying goodness-of-fit metrics.
-# Args:
-#   metrics: Data frame or matrix containing performance metrics
-#            (n, R², RMSE, MBias, AIC, BIC).
-# Returns:
-#   A character string with formatted metric labels for use in
-#   plot annotations.
+# Metrics annotation label (n, R², RMSE, MBias, AIC, BIC).
 create_metrics_label <- function(metrics) {
   n <- round(metrics["n", 1], 0)
   r2 <- round(metrics["r2", 1], 3)
@@ -49,21 +38,7 @@ create_metrics_label <- function(metrics) {
 
 # ==================== Main Plot Functions ==================== #
 
-# Create a probability plot with return period on the x-axis.
-# Args:
-#   eva_table: Data frame containing empirical return period and
-#              data values.
-#   model_rperiods: Numeric vector of model return periods.
-#   model_quant: Numeric vector of model-predicted quantiles.
-#   distr: Character string specifying the distribution name.
-#   metrics: Optional data frame containing goodness-of-fit
-#            metrics. Default is NULL.
-#   ci_results: Optional list containing confidence interval data.
-#               Default is NULL.
-# Returns:
-#   A ggplot2 object displaying the probability plot with
-#   empirical points, fitted curve, optional metrics annotation,
-#   and optional confidence bands.
+# Probability plot vs return period (optional metrics/CI).
 create_prob_plot_rperiod <- function(eva_table,
                                      model_rperiods,
                                      model_quant,
@@ -72,27 +47,10 @@ create_prob_plot_rperiod <- function(eva_table,
                                      ci_results = NULL,
                                      method = NULL,
                                      ylim = NULL,
-                                     data_name = NULL) {
-  distr_upper <- toupper(distr)
-  # Build title with method when provided
-  title_base <- if (!is.null(method)) {
-    method_label <- switch(method,
-      "lmme" = "L-moments",
-      "mme" = "Method of Moments",
-      "mle" = "Maximum Likelihood",
-      method
-    )
-    paste("Probability Plot -", sprintf("%s (%s)", distr_upper, method_label))
-  } else {
-    paste("Probability Plot -", distr_upper)
-  }
-  
-  # Prepend data name if provided
-  title_text <- if (!is.null(data_name) && data_name != "") {
-    paste(data_name, "|", title_base)
-  } else {
-    title_base
-  }
+                                     data_name = NULL,
+                                     title_override = NULL) {
+  title_text <- if (!is.null(title_override)) title_override else 
+    build_plot_title("Probability Plot", distr, method, data_name)
   p <- ggplot() +
     geom_point(data = eva_table,
                aes(x = rperiod, y = data),
@@ -142,44 +100,16 @@ create_prob_plot_rperiod <- function(eva_table,
   return(p)
 }
 
-# Create a probability plot with exceedance probability on the
-# x-axis.
-# Args:
-#   eva_table: Data frame containing empirical return period and
-#              data values.
-#   model_pexc: Numeric vector of model exceedance probabilities.
-#   model_quant: Numeric vector of model-predicted quantiles.
-#   distr: Character string specifying the distribution name.
-#   lang: Language code ("en" or "es"). Default is "en".
-# Returns:
-#   A ggplot2 object displaying the probability plot with
-#   exceedance probability scale and empirical points.
+# Probability plot vs exceedance probability.
 create_prob_plot_pexc <- function(eva_table,
                                    model_pexc,
                                    model_quant,
                                    distr,
                                    method = NULL,
-                                   data_name = NULL) {
-  distr_upper <- toupper(distr)
-  # Build title with method when provided
-  title_base <- if (!is.null(method)) {
-    method_label <- switch(method,
-      "lmme" = "L-moments",
-      "mme" = "Method of Moments",
-      "mle" = "Maximum Likelihood",
-      method
-    )
-    paste("Probability Plot -", sprintf("%s (%s)", distr_upper, method_label))
-  } else {
-    paste("Probability Plot -", distr_upper)
-  }
-  
-  # Prepend data name if provided
-  title_text <- if (!is.null(data_name) && data_name != "") {
-    paste(data_name, "|", title_base)
-  } else {
-    title_base
-  }
+                                   data_name = NULL,
+                                   title_override = NULL) {
+  title_text <- if (!is.null(title_override)) title_override else 
+    build_plot_title("Probability Plot", distr, method, data_name)
   ggplot() +
     geom_point(data = eva_table,
                aes(x = pexc, y = data),
@@ -193,23 +123,10 @@ create_prob_plot_pexc <- function(eva_table,
     get_plot_theme()
 }
 
-# Create a quantile-quantile (Q-Q) plot comparing sample and
-# theoretical quantiles.
-# Args:
-#   eva_table: Data frame containing sample data values.
-#   distr: Character string specifying the distribution name.
-#   params: Numeric vector of distribution parameters.
-# Returns:
-#   A ggplot2 object displaying the Q-Q plot with theoretical
-#   quantiles on x-axis and sample quantiles on y-axis.
-create_qq_plot <- function(eva_table, distr, params, data_name = NULL) {
-  distr_upper <- toupper(distr)
-  title_base <- paste("Q-Q Plot -", distr_upper)
-  title_text <- if (!is.null(data_name) && data_name != "") {
-    paste(data_name, "|", title_base)
-  } else {
-    title_base
-  }
+# Q-Q plot (sample vs theoretical quantiles).
+create_qq_plot <- function(eva_table, distr, params, method = NULL, data_name = NULL, title_override = NULL) {
+  title_text <- if (!is.null(title_override)) title_override else 
+    build_plot_title("Q-Q Plot", distr, method, data_name)
   
   ggplot(data = eva_table, aes(sample = data)) +
     stat_qq(distribution = function(p) {
@@ -224,23 +141,10 @@ create_qq_plot <- function(eva_table, distr, params, data_name = NULL) {
     get_plot_theme()
 }
 
-# Create a histogram with fitted probability density function
-# (PDF) overlay.
-# Args:
-#   eva_table: Data frame containing sample data values.
-#   distr: Character string specifying the distribution name.
-#   params: Numeric vector of distribution parameters.
-# Returns:
-#   A ggplot2 object displaying a histogram with density scale
-#   and fitted distribution curve overlay.
-create_histogram_plot <- function(eva_table, distr, params, data_name = NULL) {
-  distr_upper <- toupper(distr)
-  title_base <- paste("Histogram with Fitted PDF -", distr_upper)
-  title_text <- if (!is.null(data_name) && data_name != "") {
-    paste(data_name, "|", title_base)
-  } else {
-    title_base
-  }
+# Histogram with fitted PDF overlay.
+create_histogram_plot <- function(eva_table, distr, params, method = NULL, data_name = NULL, title_override = NULL) {
+  title_text <- if (!is.null(title_override)) title_override else 
+    build_plot_title("Histogram with Fitted PDF", distr, method, data_name)
   x_seq <- seq(min(eva_table$data), max(eva_table$data), length.out = 200)
   pdf_vals <- dprobmodel(x_seq, distr, params)
   # Calculate number of bins using Freedman-Diaconis rule with minimum of 10
@@ -260,23 +164,10 @@ create_histogram_plot <- function(eva_table, distr, params, data_name = NULL) {
     get_plot_theme()
 }
 
-# Create a cumulative distribution function (CDF) plot comparing
-# empirical and fitted distributions.
-# Args:
-#   eva_table: Data frame containing sample data values.
-#   distr: Character string specifying the distribution name.
-#   params: Numeric vector of distribution parameters.
-# Returns:
-#   A ggplot2 object displaying the empirical CDF (step function)
-#   and fitted theoretical CDF curve.
-create_cdf_plot <- function(eva_table, distr, params, data_name = NULL) {
-  distr_upper <- toupper(distr)
-  title_base <- paste("Empirical vs Fitted CDF -", distr_upper)
-  title_text <- if (!is.null(data_name) && data_name != "") {
-    paste(data_name, "|", title_base)
-  } else {
-    title_base
-  }
+# Empirical vs fitted CDF plot.
+create_cdf_plot <- function(eva_table, distr, params, method = NULL, data_name = NULL, title_override = NULL) {
+  title_text <- if (!is.null(title_override)) title_override else 
+    build_plot_title("Empirical vs Fitted CDF", distr, method, data_name)
   
   x_seq <- seq(min(eva_table$data), max(eva_table$data), length.out = 200)
   cdf_vals <- pprobmodel(x_seq, distr, params)
@@ -290,16 +181,8 @@ create_cdf_plot <- function(eva_table, distr, params, data_name = NULL) {
     get_plot_theme()
 }
 
-# Create a comparison probability plot showing multiple
-# distributions.
-# Args:
-#   comparison_results: Named list where each element is a
-#                       distribution result (from
-#                       run_eva_analysis).
-# Returns:
-#   A ggplot object showing empirical data and fitted curves
-#   for all distributions.
-create_comparison_plot <- function(comparison_results) {
+# Compare multiple distributions (probability plot).
+create_comparison_plot <- function(comparison_results, title_override = NULL) {
   # Get empirical data from first distribution
   first_result <- comparison_results[[1]]
   eva_table <- first_result$eva_table
@@ -363,6 +246,9 @@ create_comparison_plot <- function(comparison_results) {
       legend.title = element_text(size = 12, face = "bold"),
       legend.text = element_text(size = 10)
     )
+  if (!is.null(title_override)) {
+    p <- p + labs(title = title_override)
+  }
   
   # ==================== GOF Summary Text Overlay ==================== #
   # Build ✓ / ✗ summary (Chi2, KS, CVM, AD) based on p-value > 0.05.
@@ -395,15 +281,8 @@ create_comparison_plot <- function(comparison_results) {
   return(p)
 }
 
-# Create a comparison probability plot showing multiple
-# fitting methods for a single distribution.
-# Args:
-#   method_comparison_results: Named list where each element is a
-#                              method result (from run_eva_analysis).
-# Returns:
-#   A ggplot object showing empirical data and fitted curves
-#   for all methods.
-create_method_comparison_plot <- function(method_comparison_results) {
+# Compare fitting methods for one distribution.
+create_method_comparison_plot <- function(method_comparison_results, title_override = NULL) {
   # Get empirical data from first method
   first_result <- method_comparison_results[[1]]
   eva_table <- first_result$eva_table
@@ -470,6 +349,9 @@ create_method_comparison_plot <- function(method_comparison_results) {
       legend.title = element_text(size = 12, face = "bold"),
       legend.text = element_text(size = 10)
     )
+  if (!is.null(title_override)) {
+    p <- p + labs(title = title_override)
+  }
   
   # ==================== GOF Summary Text Overlay ==================== #
   # Build ✓ / ✗ summary (KS, CVM, AD) based on p-value > 0.05.

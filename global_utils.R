@@ -1,5 +1,48 @@
 source("fit_utils.R")
 
+# ==================== Global Helper Utilities (Refactored) ==================== #
+
+# Human-readable method label
+get_method_label <- function(method) {
+  switch(method,
+    "lmme" = "L-moments",
+    "mme"  = "Method of Moments",
+    "mle"  = "Maximum Likelihood",
+    method
+  )
+}
+
+# Sanitize data name for filenames
+sanitize_data_name <- function(name, default = "EVA_Data") {
+  if (is.null(name) || identical(name, "")) return(default)
+  gsub("[^A-Za-z0-9_-]", "_", name)
+}
+
+# Parse comma-separated return periods into numeric vector
+parse_return_periods <- function(rp_str) {
+  as.numeric(unlist(strsplit(rp_str, ",")))
+}
+
+# Generate expanded model return periods for smooth plotting
+compute_model_rperiods <- function(target_rp, length_out = 100) {
+  max_target <- max(target_rp, na.rm = TRUE)
+  exp(seq(log(1.01), log(max_target * 2), length.out = length_out))
+}
+
+# Build standardized plot title: Data | Kind - DIST (Method)
+build_plot_title <- function(plot_kind, distr, method = NULL, data_name = NULL) {
+  distr_upper <- toupper(distr)
+  base <- if (!is.null(method)) {
+    paste0(plot_kind, " - ", distr_upper, " (", get_method_label(method), ")")
+  } else {
+    paste0(plot_kind, " - ", distr_upper)
+  }
+  if (!is.null(data_name) && data_name != "") {
+    paste(data_name, "|", base)
+  } else base
+}
+
+
 
 # Extract non-NA values and their corresponding IDs from a
 # vector or data frame column.
@@ -192,9 +235,4 @@ run_probmodel <- function(data,
 }
 
 
-pad_and_bind <- function(...) {
-  lst       <- list(...)             # all vectors
-  max_len   <- max(lengths(lst))     # longest length
-  padded    <- lapply(lst, function(x) c(x, rep(NA, max_len - length(x))))
-  do.call(rbind, padded)             # or change to rbind() for top‑to‑bottom
-}
+## Removed unused helper pad_and_bind (not referenced anywhere)

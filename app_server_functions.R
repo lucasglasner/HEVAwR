@@ -8,22 +8,13 @@ library(tibble)
 
 # ==================== Data Loading Functions ==================== #
 
-# Load data from a CSV or TXT file.
-# Args:
-#   filepath: Character string specifying the path to the file.
-# Returns:
-#   A numeric vector containing the first column of the file.
+# Load first column from CSV/TXT into numeric vector.
 load_data_from_file <- function(filepath) {
   df <- read.csv(filepath, header = FALSE)
   return(df[, 1])
 }
 
-# Parse data from a text string with one value per line.
-# Args:
-#   text: Character string containing numeric values separated by
-#         newlines.
-# Returns:
-#   A numeric vector containing the parsed non-NA values.
+# Parse newline-delimited numeric text into vector.
 load_data_from_text <- function(text) {
   data <- as.numeric(unlist(strsplit(text, "\n")))
   return(data[!is.na(data)])
@@ -31,12 +22,7 @@ load_data_from_text <- function(text) {
 
 # ==================== Parameter Control Functions ==================== #
 
-# Get parameter names for a given distribution.
-# Args:
-#   distr: Character string specifying the distribution name.
-# Returns:
-#   A character vector of parameter names appropriate for the
-#   specified distribution.
+# Return parameter name labels for distribution.
 get_param_names <- function(distr) {
   param_names <- switch(distr,
     "norm" = c("Mean", "SD"),
@@ -50,13 +36,7 @@ get_param_names <- function(distr) {
   return(param_names)
 }
 
-# Create dynamic UI controls for manual parameter adjustment.
-# Args:
-#   fitted_params: Numeric vector of fitted parameter values.
-#   distr: Character string specifying the distribution name.
-# Returns:
-#   A Shiny fluidRow object containing numericInput controls for
-#   each parameter.
+# Numeric input controls for fitted parameters.
 create_param_controls_ui <- function(fitted_params,
                                       distr) {
   n_params <- length(fitted_params)
@@ -81,29 +61,14 @@ create_param_controls_ui <- function(fitted_params,
 
 # ==================== Analysis Functions ==================== #
 
-# Run extreme value analysis with specified distribution and
-# method.
-# Args:
-#   data: Numeric vector of sample data.
-#   method: Character string specifying fitting method ("lmme",
-#           "mme", or "mle").
-#   distr: Character string specifying the distribution name.
-#   target_rperiods: Character string of comma-separated return
-#                    periods.
-#   fix_zeros: Logical indicating whether to handle zero values.
-# Returns:
-#   A list containing analysis results including eva_table,
-#   statistics, fitted parameters, quantiles, and metrics.
+# Run EVA analysis; returns model results list.
 run_eva_analysis <- function(data,
                               method,
                               distr,
                               target_rperiods,
                               fix_zeros) {
-  # Parse target return periods
-  target_rp <- as.numeric(unlist(strsplit(target_rperiods, ",")))
-  model_rp <- exp(
-    seq(log(1.01), log(max(target_rp) * 2), length.out = 100)
-  )
+  target_rp <- parse_return_periods(target_rperiods)
+  model_rp  <- compute_model_rperiods(target_rp)
   # Run the probability model
   results <- run_probmodel(
     data = data,
@@ -116,25 +81,13 @@ run_eva_analysis <- function(data,
   return(results)
 }
 
-# Recompute analysis results with manually adjusted parameters.
-# Args:
-#   results: List containing previous analysis results.
-#   manual_params: Numeric vector of manually adjusted parameters.
-#   target_rperiods: Character string of comma-separated return
-#                    periods.
-#   fix_zeros: Logical indicating whether to handle zero values.
-# Returns:
-#   Updated results list with recomputed quantiles, predictions,
-#   and metrics.
+# Recompute results using manually adjusted params.
 recompute_with_manual_params <- function(results,
                                           manual_params,
                                           target_rperiods,
                                           fix_zeros) {
-  # Parse target return periods
-  target_rp <- as.numeric(unlist(strsplit(target_rperiods, ",")))
-  model_rp <- exp(
-    seq(log(1.01), log(max(target_rp) * 2), length.out = 100)
-  )
+  target_rp <- parse_return_periods(target_rperiods)
+  model_rp  <- compute_model_rperiods(target_rp)
   model_pexc <- 1 / model_rp
   # Update parameters
   results$params <- manual_params
@@ -170,24 +123,7 @@ recompute_with_manual_params <- function(results,
 
 # ==================== Confidence Interval Functions ==================== #
 
-# Compute bootstrap confidence intervals for return level
-# estimates.
-# Args:
-#   data: Numeric vector of sample data.
-#   n_bootstrap: Integer specifying number of bootstrap iterations.
-#   distr: Character string specifying the distribution name.
-#   method: Character string specifying fitting method.
-#   ci_level: Numeric value between 0 and 1 for confidence level.
-#   target_rperiods: Character string of comma-separated return
-#                    periods.
-#   statistics: Data frame of sample statistics.
-#   fix_zeros: Logical indicating whether to handle zero values.
-#   parallel: Logical indicating whether to use parallel
-#             processing.
-# Returns:
-#   A list containing model and target return period quantiles
-#   with lower and upper confidence bounds, or NULL if bootstrap
-#   fails.
+# Bootstrap confidence intervals for return levels.
 compute_bootstrap_ci <- function(data,
                                   n_bootstrap,
                                   distr,
@@ -214,10 +150,8 @@ compute_bootstrap_ci <- function(data,
   # Calculate confidence intervals
   alpha <- 1 - ci_level
   # Get quantiles for model predictions
-  target_rp <- as.numeric(unlist(strsplit(target_rperiods, ",")))
-  model_rp <- exp(
-    seq(log(1.01), log(max(target_rp) * 2), length.out = 100)
-  )
+  target_rp <- parse_return_periods(target_rperiods)
+  model_rp  <- compute_model_rperiods(target_rp)
   model_pexc <- 1 / model_rp
   # Compute quantiles for each bootstrap iteration
   n_iters <- nrow(bootstrap_results)
@@ -269,16 +203,7 @@ compute_bootstrap_ci <- function(data,
 
 # ==================== GOF Test Functions ==================== #
 
-# Run goodness-of-fit statistical tests for the fitted
-# distribution.
-# Args:
-#   data: Numeric vector of sample data.
-#   distr: Character string specifying the distribution name.
-#   params: Numeric vector of distribution parameters.
-# Returns:
-#   A data frame containing test names, statistics, p-values, and
-#   pass/fail indicators (✓/✗) for Kolmogorov-Smirnov,
-#   Cramer-von Mises, and Anderson-Darling tests.
+# Run KS, CVM, AD GOF tests; returns summary data frame.
 run_gof_tests <- function(data, distr, params) {
   # Run individual GOF tests (Chi-Squared removed)
   ks  <- ks_gof(data, distr, params, alpha = 0.05)
@@ -312,15 +237,7 @@ run_gof_tests <- function(data, distr, params) {
 
 # ==================== Table Functions ==================== #
 
-# Format quantiles table with optional confidence intervals.
-# Args:
-#   target_quant: Data frame containing target return period
-#                 quantiles.
-#   ci_results: Optional list containing confidence interval
-#               results. Default is NULL.
-# Returns:
-#   A formatted data frame with quantile estimates and optional
-#   confidence interval columns.
+# Format target quantiles with optional CI columns.
 format_quantiles_table <- function(target_quant, ci_results = NULL) {
   quant_df <- target_quant
   # Add confidence intervals if available
@@ -337,19 +254,7 @@ format_quantiles_table <- function(target_quant, ci_results = NULL) {
 
 # ==================== Export Functions ==================== #
 
-# Create an Excel workbook with comprehensive analysis results.
-# Args:
-#   results: List containing analysis results from run_probmodel.
-#   filename: Character string specifying the output file path.
-#   ci_results: Optional list containing confidence interval
-#               results. Default is NULL.
-#   initial_params: Optional numeric vector of initial fitted
-#                   parameters. Default is NULL.
-# Returns:
-#   NULL (invisibly). Creates an Excel file with 6-8 worksheets:
-#   EVA_Table, Statistics, CalibrationParams, FitModel,
-#   FitResults, PerformanceMetrics, and optionally
-#   ConfidenceIntervals and FinalParams.
+# Write Excel report (tables, stats, params, metrics, optional CI/final params).
 create_excel_report <- function(results, filename, ci_results = NULL,
                                  initial_params = NULL) {
   # Create workbook

@@ -2,10 +2,13 @@
 
 Hydrological Extreme Value Analysis with R (`HEVAwR`) is a project designed to facilitate probabilistic modeling of hydrological datasets. It provides tools for fitting statistical distributions, computing exceedance probabilities, and generating confidence intervals for extreme value analysis.
 
+The methods of this package can be used for 1D data in the following shiny application:
+
+[https://lucasglasner.shinyapps.io/hevawr](https://lucasglasner.shinyapps.io/hevawr)
+
 ---
 
 #### Dependencies
-
 
 ```bash
   "shiny", "shinythemes", "DT",
@@ -15,8 +18,6 @@ Hydrological Extreme Value Analysis with R (`HEVAwR`) is a project designed to f
 ```
 
 ---
-
-
 
 ### Example
 

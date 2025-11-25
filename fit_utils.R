@@ -11,14 +11,8 @@ probmodel_names <- c("norm", "lognorm", "gamma", "pearson3",
 probmodel_nparams <- list(norm = 2, lognorm = 2, gamma = 2, pearson3 = 3,
                           logpearson3 = 3, gumbel = 2, gev = 3)
 
-# ------------------------- Compute empirical moments ------------------------ #
-# Compute the first four sample moments of a numeric vector.
-# Args: x: A numeric vector containing sample data.
-#       type: An integer specifying the type of skewness and kurtosis to
-#             compute. Passed to e1071::skewness and e1071::kurtosis. Default
-#             is 2 (bias-corrected).
-# Returns: A named numeric vector containing mean, variance, skewness, and
-#          kurtosis.
+# ------------------------- Empirical moments ------------------------ #
+# Return mean, variance, skewness, kurtosis (type defaults to bias-corrected).
 moms <- function(x, type = 2) {
   m <- mean(x)
   v <- var(x)
@@ -27,12 +21,7 @@ moms <- function(x, type = 2) {
   return(c(mean = m, variance = v, skewness = s, kurtosis = k))
 }
 
-# Extract a specific sample moment from a numeric vector based on the given
-# order.
-# Args: x: A numeric vector containing sample data.
-#       order: An integer (1 to 4) specifying which moment to return.
-#       ...: Additional arguments passed to the moms function.
-# Returns: The requested sample moment (mean, variance, skewness, or kurtosis).
+# Extract a single requested moment (order 1–4) from x.
 emoms <- function(x, order, ...) {
   x_moms <- moms(x, ...)
   if (order == 1) return(x_moms[1])
@@ -42,16 +31,7 @@ emoms <- function(x, order, ...) {
 }
 
 # ---------------------------- Normal distribution --------------------------- #
-# Fit a normal distribution to a sample using different methods.
-# Args: x: A numeric vector containing sample data.
-#       method: The fitting method to use. Options include:
-#               - "lmme" L-moment matching estimation
-#               - "mme" Moment matching estimation
-#               - "mle" Maximum likelihood estimation
-#               - Other methods available in fitdist.
-#       ...: Additional arguments passed to fitdist (if not using "lmme").
-# Returns: A numeric vector containing the estimated parameters
-#         (mean, standard deviation).
+# Fit normal: returns c(mean, sd) via selected method (lmme/mme/mle).
 fit_norm <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
     params <- parnor(lmoms(x))$para
@@ -62,26 +42,13 @@ fit_norm <- function(x, method = "lmme", ...) {
 }
 
 # -------------------------- Lognormal distribution -------------------------- #
-# Fit a log-normal distribution to a sample by applying a normal fit on the
-# logarithm of the data.
-# Args: x: A numeric vector containing sample data.
-#       ...: Additional arguments passed to fit_norm.
-# Returns: A numeric vector containing the estimated parameters (mean,
-#          standard deviation) for the log-normal distribution.
+# Fit lognormal by fitting normal to log(x); returns meanlog, sdlog.
 fit_lognorm <- function(x, ...) {
   return(fit_norm(log(x), ...))
 }
 
 # ---------------------------- Gamma distribution ---------------------------- #
-# Fit a gamma distribution to a sample using different methods.
-# Args: x: A numeric vector containing sample data.
-#       method: The fitting method to use. Options include:
-#               - "lmme" L-moment matching estimation
-#               - "mme" Moment matching estimation
-#               - "mle" Maximum likelihood estimation
-#               - Other methods available in fitdist.
-#       ...: Additional arguments passed to fitdist (if not using "lmme").
-# Returns: A numeric vector containing the estimated parameters (shape, rate).
+# Fit gamma: returns c(shape, rate) using chosen method.
 fit_gamma <- function(x, method = "lmme", ...) {
   if (method == "lmme") {
     params <- pargam(lmoms(x))$para
@@ -93,20 +60,13 @@ fit_gamma <- function(x, method = "lmme", ...) {
 }
 
 # ----------------------- Pearson type III distribution ---------------------- #
-# Compute the probability density function (PDF) of a
-# Pearson Type 3 distribution.
-# Args: x: A numeric vector containing values at which to evaluate the PDF.
-#       loc: The location parameter of the Pearson Type 3 distribution.
-#       scale: The scale parameter of the Pearson Type 3 distribution.
-#       shape: The shape parameter of the Pearson Type 3 distribution.
-# Returns: A numeric vector containing the PDF values at the specified points.
+# d/p/q/r helpers (pearson3) using lmomco; parameters loc, scale, shape.
 dpearson3 <- function(x, loc, scale, shape) {
   para <- vec2par(c(loc, scale, shape), "pe3")
   return(pdfpe3(x, para))
 }
 
-# Compute the cumulative distribution function (CDF) of a
-# Pearson Type 3 distribution.
+# CDF for Pearson III.
 # Args: q: A numeric vector containing values at which to evaluate the CDF.
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
@@ -117,8 +77,7 @@ ppearson3 <- function(q, loc, scale, shape) {
   return(cdfpe3(q, para))
 }
 
-# Compute the quantile function (inverse CDF) of a
-# Pearson Type 3 distribution.
+# Quantile for Pearson III.
 # Args: p: A numeric vector of probabilities at which to evaluate the quantiles.
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
@@ -130,7 +89,7 @@ qpearson3 <- function(p, loc, scale, shape) {
   return(quape3(p, para))
 }
 
-# Generate random numbers from a Pearson Type 3 distribution.
+# Random sample Pearson III.
 # Args: n: The number of random values to generate.
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
@@ -142,8 +101,7 @@ rpearson3 <- function(n, loc, scale, shape) {
   return(rlmomco(n, para))
 }
 
-# Compute the statistical moments of a Pearson Type 3
-# distribution.
+# Empirical moments passthrough for Pearson III.
 # Args: x: A numeric vector of values for which to compute
 #          the moments.
 #       order: The order of the moment to compute
@@ -154,8 +112,7 @@ epearson3 <- function(x, order) {
   return(emoms(x, order))
 }
 
-# Get the specified moment parameter (mean, scale, or shape)
-# of a Pearson Type 3 distribution.
+# Return requested raw parameter (1=loc,2=scale,3=shape).
 # Args: order: The moment order (1 for mean, 2 for scale, 3 for shape).
 #       loc: The location parameter of the Pearson Type 3 distribution.
 #       scale: The scale parameter of the Pearson Type 3 distribution.
@@ -173,8 +130,7 @@ mpearson3 <- function(order, loc, scale, shape) {
   }
 }
 
-# Generate initial parameter estimates for a Pearson Type 3
-# distribution from sample data.
+# Simple initial guesses for Pearson III.
 # Args: x: A numeric vector containing sample data.
 # Returns: A list containing the estimated location, scale, and shape
 # parameters.
@@ -186,7 +142,7 @@ fpearson3 <- function(x) {
   return(fguess)
 }
 
-# Fit a Pearson Type III distribution to a sample using different methods.
+# Fit Pearson III (lmme/mme/mle/other).
 # Args: x: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation
@@ -216,8 +172,7 @@ fit_pearson3 <- function(x, method = "lmme", ...) {
 }
 
 # --------------------- Log pearson type III distribution -------------------- #
-# Compute the probability density function (PDF) of a
-# Log-Pearson Type 3 distribution.
+# Density of log-Pearson III (transform + Jacobian).
 # Args: x: A numeric vector containing values at which to evaluate the PDF.
 #       loc: The location parameter of the Log-Pearson Type 3 distribution.
 #       scale: The scale parameter of the Log-Pearson Type 3 distribution.
@@ -229,8 +184,7 @@ dlogpearson3 <- function(x, loc, scale, shape) {
   return(pdf)
 }
 
-# Compute the cumulative distribution function (CDF) of a
-# Log-Pearson Type 3 distribution.
+# CDF of log-Pearson III.
 # Args: x: A numeric vector containing values at which to evaluate the CDF.
 #       loc: The location parameter of the Log-Pearson Type 3 distribution.
 #       scale: The scale parameter of the Log-Pearson Type 3 distribution.
@@ -242,8 +196,7 @@ plogpearson3 <- function(q, loc, scale, shape) {
   return(cdf)
 }
 
-# Compute the quantile function (inverse CDF) of a
-# Log-Pearson Type 3 distribution.
+# Quantile of log-Pearson III.
 # Args: p: A numeric vector of probabilities at which to evaluate the quantiles.
 #       loc: The location parameter of the Log-Pearson Type 3 distribution.
 #       scale: The scale parameter of the Log-Pearson Type 3 distribution.
@@ -256,7 +209,7 @@ qlogpearson3 <- function(p, loc, scale, shape) {
   return(quantile)
 }
 
-# Generate random numbers from a Log-Pearson Type 3 distribution.
+# Random sample log-Pearson III.
 # Args: n: The number of random values to generate.
 #       loc: The location parameter of the Log-Pearson Type 3 distribution.
 #       scale: The scale parameter of the Log-Pearson Type 3 distribution.
@@ -269,8 +222,7 @@ rlogpearson3 <- function(n, loc, scale, shape) {
   return(random_x)
 }
 
-# Fit a log-Pearson Type III distribution to a sample by
-# applying a Pearson Type III fit on the logarithm of the data.
+# Fit log-Pearson III via pearson III on log(x).
 # Args: x: A numeric vector containing sample data.
 #       ...: Additional arguments passed to fit_pearson3.
 # Returns: A numeric vector containing the estimated parameters (shape, scale,
@@ -281,7 +233,7 @@ fit_logpearson3 <- function(x, ...) {
 
 
 # ---------------------------- Gumbel distribution --------------------------- #
-# Compute the probability density function (PDF) of a Gumbel distribution.
+# d/p/q/r for Gumbel using lmomco wrappers.
 # Args: x: A numeric vector containing values at which to evaluate the PDF.
 #       loc: The location parameter of the Gumbel distribution.
 #       scale: The scale parameter of the Gumbel distribution.
@@ -291,8 +243,7 @@ dgumbel <- function(x, loc, scale) {
   return(pdfgum(x, para))
 }
 
-# Compute the cumulative distribution function (CDF) of a
-# Gumbel distribution.
+# Gumbel CDF.
 # Args: q: A numeric vector containing values at which to evaluate the CDF.
 #       loc: The location parameter of the Gumbel distribution.
 #       scale: The scale parameter of the Gumbel distribution.
@@ -302,8 +253,7 @@ pgumbel <- function(q, loc, scale) {
   return(cdfgum(q, para))
 }
 
-# Compute the quantile function (inverse CDF) of a
-# Gumbel distribution.
+# Gumbel quantile.
 # Args: p: A numeric vector of probabilities at which to evaluate the quantiles.
 #       loc: The location parameter of the Gumbel distribution.
 #       scale: The scale parameter of the Gumbel distribution.
@@ -314,7 +264,7 @@ qgumbel <- function(p, loc, scale) {
   return(quagum(p, para))
 }
 
-# Generate random numbers from a Gumbel distribution.
+# Gumbel random sample.
 # Args: n: The number of random values to generate.
 #       loc: The location parameter of the Gumbel distribution.
 #       scale: The scale parameter of the Gumbel distribution.
@@ -325,8 +275,7 @@ rgumbel <- function(n, loc, scale) {
   return(rlmomco(n, para))
 }
 
-# Compute the empirical moments of a Gumbel distribution
-# for a given order.
+# Empirical moments passthrough for Gumbel.
 # Args: x: A numeric vector containing sample data.
 #       order: The order of the moment to compute (e.g., 1 for the mean, 2
 #              for the variance).
@@ -336,8 +285,7 @@ egumbel <- function(x, order) {
   return(emoms(x, order))
 }
 
-# Compute the theoretical moments of a Gumbel distribution
-# for a given order.
+# Theoretical moments for Gumbel (1=mean,2=variance).
 # Args: order: The order of the moment to compute (e.g., 1 for the mean, 2
 #              for the variance).
 #       loc: The location parameter of the Gumbel distribution.
@@ -355,9 +303,7 @@ mgumbel <- function(order, loc, scale) {
   }
 }
 
-# Generate first guess of Gumbel distribution parameters
-# based on the sample. The parameters are estimated using the
-# sample's mean and standard deviation.
+# Initial guesses for Gumbel.
 # Args: x: A numeric vector containing the sample data.
 # Returns: A list with two elements:
 #          - loc: The location parameter of the Gumbel distribution.
@@ -370,7 +316,7 @@ fgumbel <- function(x) {
   return(fguess)
 }
 
-# Fit a Gumbel distribution to a sample using different methods.
+# Fit Gumbel (lmme/mme/mle/other).
 # Args: x: A numeric vector containing sample data.
 #       method: The fitting method to use. Options include:
 #               - "lmme" L-moment matching estimation

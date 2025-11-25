@@ -6,11 +6,7 @@ library(shinythemes)
 
 # ==================== UI Helper Functions ==================== #
 
-# Create the sidebar panel UI with data input and analysis controls.
-# Returns:
-#   A Shiny sidebarPanel object containing file upload inputs,
-#   distribution selection, fitting method selection, and analysis
-#   trigger button.
+# Sidebar panel with data inputs and controls.
 create_sidebar_ui <- function() {
   sidebarPanel(
     width = 2,
@@ -73,10 +69,7 @@ create_sidebar_ui <- function() {
   )
 }
 
-# Create the data preview tab panel with statistics and table.
-# Returns:
-#   A Shiny tabPanel object displaying uploaded data summary,
-#   interactive data table, and sample statistics.
+# Data preview tab (stats + table).
 create_data_preview_tab <- function() {
   tabPanel(HTML("<i class='fa fa-table'></i> Data Preview"),
            h4("Sample Statistics", style = "text-align: center;"),
@@ -88,12 +81,7 @@ create_data_preview_tab <- function() {
   )
 }
 
-# Create the fitting results tab with parameter controls and plots.
-# Returns:
-#   A Shiny tabPanel object containing fitted parameters display,
-#   manual parameter adjustment controls, confidence interval
-#   computation options, main probability plot, GOF tests table,
-#   quantiles table, and Excel report download button.
+# Fitting results tab (params, plots, GOF, quantiles, export).
 create_fitting_results_tab <- function() {
   tabPanel(HTML("<i class='fa fa-chart-line'></i> Fitting Tool"),
     fluidRow(
@@ -155,11 +143,14 @@ create_fitting_results_tab <- function() {
           p("Adjust parameters manually and click 'Recompute' to update results",
             style = "font-size: 0.9em; color: #666; text-align: center;"),
           uiOutput("param_controls"),
-          actionButton(
-            "recompute",
-            "Recompute with Manual Parameters",
-            class = "btn-warning",
-            icon = icon("calculator")
+          div(
+            style = "text-align: center;",
+            actionButton(
+              "recompute",
+              "Recompute with Manual Parameters",
+              class = "btn-warning",
+              icon = icon("calculator")
+            )
           ),
           hr(),
           h4("Confidence Intervals", style = "text-align: center;"),
@@ -183,11 +174,14 @@ create_fitting_results_tab <- function() {
               )
             )
           ),
-          actionButton(
-            "compute_ci",
-            "Compute Confidence Intervals",
-            class = "btn-info",
-            icon = icon("chart-line")
+          div(
+            style = "text-align: center;",
+            actionButton(
+              "compute_ci",
+              "Compute Confidence Intervals",
+              class = "btn-info",
+              icon = icon("chart-line")
+            )
           ),
           hr()
         )
@@ -242,12 +236,7 @@ create_fitting_results_tab <- function() {
   )
 }
 
-# Create the diagnostic plots tab with multiple plot types.
-# Returns:
-#   A Shiny tabPanel object containing four diagnostic plots:
-#   exceedance probability plot, Q-Q plot, histogram with fitted
-#   PDF, and empirical vs fitted CDF. Each plot includes a
-#   download button.
+# Diagnostic plots tab (probability, QQ, histogram, CDF).
 create_plots_tab <- function() {
   tabPanel(HTML("<i class='fa fa-chart-area'></i> Auxiliary Plots"),
     fluidRow(
@@ -345,12 +334,7 @@ create_plots_tab <- function() {
   )
 }
 
-# Create the method comparison tab for multi-method analysis.
-# Returns:
-#   A Shiny tabPanel object with controls for selecting a single
-#   distribution and multiple fitting methods, displaying their
-#   parameters with manual adjustment capability, and showing a
-#   comparison probability plot.
+# Method comparison tab (multi-method vs one distribution).
 create_method_comparison_tab <- function() {
   tabPanel(HTML("<i class='fa fa-balance-scale'></i> Method Comparison"),
     h3("Multi-Method Comparison", style = "text-align: center;"),
@@ -435,12 +419,7 @@ create_method_comparison_tab <- function() {
   )
 }
 
-# Create the model comparison tab for multi-distribution analysis.
-# Returns:
-#   A Shiny tabPanel object with controls for selecting multiple
-#   distributions, displaying their parameters with manual
-#   adjustment capability, and showing a comparison probability
-#   plot.
+# Model comparison tab (multi-distribution same method).
 create_model_comparison_tab <- function() {
   tabPanel(HTML("<i class='fa fa-layer-group'></i> Model Comparison"),
     h3("Multi-Distribution Comparison", style = "text-align: center;"),
@@ -523,16 +502,14 @@ create_model_comparison_tab <- function() {
   )
 }
 
-# Create the main application UI layout.
-# Returns:
-#   A Shiny fluidPage object with sidebar layout containing all
-#   tabs and components for the EVA Shiny application.
+# Main application UI layout.
 create_ui <- function() {
   fluidPage(
     theme = shinytheme("flatly"),
     titlePanel(
-      div("Extreme Value Analysis - Distribution Fitting Tool",
-          style = "text-align: center;")
+      title = div("Extreme Value Analysis - Distribution Fitting Tool",
+          style = "text-align: center;"),
+      windowTitle = "Extreme Value Analysis - Distribution Fitting Tool"
     ),
     sidebarLayout(
       create_sidebar_ui(),
