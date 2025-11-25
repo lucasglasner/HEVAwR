@@ -142,7 +142,9 @@ server <- function(input, output, session) {
   })
   
   # ============= Clear Results on Distribution/Method Change ============= #
+  # Sync Fitting Tool and Auxiliary Plots selectors
   observeEvent(input$distribution, {
+    updateSelectInput(session, "aux_distribution", selected = input$distribution)
     rv$ci_results <- NULL
     rv$results <- NULL
     rv$fitted_params <- NULL
@@ -150,10 +152,20 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   observeEvent(input$method, {
+    updateSelectInput(session, "aux_method", selected = input$method)
     rv$ci_results <- NULL
     rv$results <- NULL
     rv$fitted_params <- NULL
     rv$initial_params <- NULL
+  }, ignoreInit = TRUE)
+  
+  # Sync changes from Auxiliary Plots back to Fitting Tool
+  observeEvent(input$aux_distribution, {
+    updateSelectInput(session, "distribution", selected = input$aux_distribution)
+  }, ignoreInit = TRUE)
+  
+  observeEvent(input$aux_method, {
+    updateSelectInput(session, "method", selected = input$aux_method)
   }, ignoreInit = TRUE)
   
   # ============= Main Analysis ============= #
@@ -167,6 +179,26 @@ server <- function(input, output, session) {
         data = rv$data,
         method = input$method,
         distr = input$distribution,
+        target_rperiods = input$target_rperiods,
+        fix_zeros = input$handle_zeros
+      )
+      
+      rv$fitted_params <- rv$results$params
+      rv$initial_params <- rv$results$params
+    })
+  })
+  
+  # Auxiliary Plots Run Analysis (same as main)
+  observeEvent(input$aux_run_analysis, {
+    req(rv$data)
+    
+    rv$ci_results <- NULL
+    
+    withProgress(message = 'Fitting distribution...', value = 0, {
+      rv$results <- run_eva_analysis(
+        data = rv$data,
+        method = input$aux_method,
+        distr = input$aux_distribution,
         target_rperiods = input$target_rperiods,
         fix_zeros = input$handle_zeros
       )
@@ -245,7 +277,7 @@ server <- function(input, output, session) {
         target_rperiods = input$target_rperiods,
         statistics = rv$results$statistics,
         fix_zeros = input$handle_zeros,
-        parallel = input$parallel_bootstrap
+        parallel = FALSE
       )
       
       if (is.null(ci_results)) {
@@ -348,7 +380,8 @@ server <- function(input, output, session) {
       metrics = rv$results$metrics,
       ci_results = rv$ci_results,
       method = rv$results$method,
-      ylim = ylim_vec
+      ylim = ylim_vec,
+      data_name = input$data_name
     )
   })
   
@@ -360,14 +393,15 @@ server <- function(input, output, session) {
       model_pexc = 1 / model_rperiods,
       model_quant = rv$results$model_quant[, 1],
       distr = rv$results$distr,
-      method = rv$results$method
+      method = rv$results$method,
+      data_name = input$data_name
     )
   })
   
   output$qq_plot <- renderPlot({
     req(rv$results)
     create_qq_plot(rv$results$eva_table, rv$results$distr, 
-                   rv$results$params)
+                   rv$results$params, input$data_name)
   })
   
   output$hist_plot <- renderPlot({
@@ -375,22 +409,44 @@ server <- function(input, output, session) {
     create_histogram_plot(
       rv$results$eva_table,
       rv$results$distr,
-      rv$results$params
+      rv$results$params,
+      input$data_name
     )
   })
   
   output$cdf_plot <- renderPlot({
     req(rv$results)
     create_cdf_plot(rv$results$eva_table, rv$results$distr, 
-                    rv$results$params)
+                    rv$results$params, input$data_name)
   })
   
   # ============= Download Handlers ============= #
   
-  # Excel Report
+  # Excel Report (Fitting Tool)
   output$download_report <- downloadHandler(
     filename = function() {
-      paste0("EVA_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
+      data_name <- if (!is.null(input$data_name) && input$data_name != "") {
+        gsub("[^A-Za-z0-9_-]", "_", input$data_name)
+      } else {
+        "EVA_Data"
+      }
+      paste0(data_name, "_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
+    },
+    content = function(file) {
+      req(rv$results)
+      create_excel_report(rv$results, file, rv$ci_results, rv$initial_params)
+    }
+  )
+  
+  # Excel Report (Auxiliary Plots - same as Fitting Tool)
+  output$aux_download_report <- downloadHandler(
+    filename = function() {
+      data_name <- if (!is.null(input$data_name) && input$data_name != "") {
+        gsub("[^A-Za-z0-9_-]", "_", input$data_name)
+      } else {
+        "EVA_Data"
+      }
+      paste0(data_name, "_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
     },
     content = function(file) {
       req(rv$results)
@@ -655,7 +711,12 @@ server <- function(input, output, session) {
   # Download model comparison Excel report
   output$download_model_comparison_report <- downloadHandler(
     filename = function() {
-      paste0("Model_Comparison_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
+      data_name <- if (!is.null(input$data_name) && input$data_name != "") {
+        gsub("[^A-Za-z0-9_-]", "_", input$data_name)
+      } else {
+        "EVA_Data"
+      }
+      paste0(data_name, "_Model_Comparison_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
     },
     content = function(file) {
       req(rv$comparison_results)
@@ -913,7 +974,12 @@ server <- function(input, output, session) {
   # Download method comparison Excel report
   output$download_method_comparison_report <- downloadHandler(
     filename = function() {
-      paste0("Method_Comparison_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
+      data_name <- if (!is.null(input$data_name) && input$data_name != "") {
+        gsub("[^A-Za-z0-9_-]", "_", input$data_name)
+      } else {
+        "EVA_Data"
+      }
+      paste0(data_name, "_Method_Comparison_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
     },
     content = function(file) {
       req(rv$method_comparison_results)

@@ -71,10 +71,11 @@ create_prob_plot_rperiod <- function(eva_table,
                                      metrics = NULL,
                                      ci_results = NULL,
                                      method = NULL,
-                                     ylim = NULL) {
+                                     ylim = NULL,
+                                     data_name = NULL) {
   distr_upper <- toupper(distr)
   # Build title with method when provided
-  title_text <- if (!is.null(method)) {
+  title_base <- if (!is.null(method)) {
     method_label <- switch(method,
       "lmme" = "L-moments",
       "mme" = "Method of Moments",
@@ -84,6 +85,13 @@ create_prob_plot_rperiod <- function(eva_table,
     paste("Probability Plot -", sprintf("%s (%s)", distr_upper, method_label))
   } else {
     paste("Probability Plot -", distr_upper)
+  }
+  
+  # Prepend data name if provided
+  title_text <- if (!is.null(data_name) && data_name != "") {
+    paste(data_name, "|", title_base)
+  } else {
+    title_base
   }
   p <- ggplot() +
     geom_point(data = eva_table,
@@ -150,10 +158,11 @@ create_prob_plot_pexc <- function(eva_table,
                                    model_pexc,
                                    model_quant,
                                    distr,
-                                   method = NULL) {
+                                   method = NULL,
+                                   data_name = NULL) {
   distr_upper <- toupper(distr)
   # Build title with method when provided
-  title_text <- if (!is.null(method)) {
+  title_base <- if (!is.null(method)) {
     method_label <- switch(method,
       "lmme" = "L-moments",
       "mme" = "Method of Moments",
@@ -163,6 +172,13 @@ create_prob_plot_pexc <- function(eva_table,
     paste("Probability Plot -", sprintf("%s (%s)", distr_upper, method_label))
   } else {
     paste("Probability Plot -", distr_upper)
+  }
+  
+  # Prepend data name if provided
+  title_text <- if (!is.null(data_name) && data_name != "") {
+    paste(data_name, "|", title_base)
+  } else {
+    title_base
   }
   ggplot() +
     geom_point(data = eva_table,
@@ -186,8 +202,15 @@ create_prob_plot_pexc <- function(eva_table,
 # Returns:
 #   A ggplot2 object displaying the Q-Q plot with theoretical
 #   quantiles on x-axis and sample quantiles on y-axis.
-create_qq_plot <- function(eva_table, distr, params) {
+create_qq_plot <- function(eva_table, distr, params, data_name = NULL) {
   distr_upper <- toupper(distr)
+  title_base <- paste("Q-Q Plot -", distr_upper)
+  title_text <- if (!is.null(data_name) && data_name != "") {
+    paste(data_name, "|", title_base)
+  } else {
+    title_base
+  }
+  
   ggplot(data = eva_table, aes(sample = data)) +
     stat_qq(distribution = function(p) {
       qprobmodel(p, distr, params)
@@ -197,7 +220,7 @@ create_qq_plot <- function(eva_table, distr, params) {
     }, color = "red", linewidth = 1.0) +
     labs(x = "Theoretical Quantiles",
          y = "Sample Quantiles",
-         title = paste("Q-Q Plot -", distr_upper)) +
+         title = title_text) +
     get_plot_theme()
 }
 
@@ -210,8 +233,14 @@ create_qq_plot <- function(eva_table, distr, params) {
 # Returns:
 #   A ggplot2 object displaying a histogram with density scale
 #   and fitted distribution curve overlay.
-create_histogram_plot <- function(eva_table, distr, params) {
+create_histogram_plot <- function(eva_table, distr, params, data_name = NULL) {
   distr_upper <- toupper(distr)
+  title_base <- paste("Histogram with Fitted PDF -", distr_upper)
+  title_text <- if (!is.null(data_name) && data_name != "") {
+    paste(data_name, "|", title_base)
+  } else {
+    title_base
+  }
   x_seq <- seq(min(eva_table$data), max(eva_table$data), length.out = 200)
   pdf_vals <- dprobmodel(x_seq, distr, params)
   # Calculate number of bins using Freedman-Diaconis rule with minimum of 10
@@ -227,7 +256,7 @@ create_histogram_plot <- function(eva_table, distr, params) {
     geom_line(aes(x = x_seq, y = pdf_vals), color = "red", linewidth = 1.0) +
     labs(x = "Value", 
          y = "Density",
-         title = paste("Histogram with Fitted PDF -", distr_upper)) +
+         title = title_text) +
     get_plot_theme()
 }
 
@@ -240,8 +269,15 @@ create_histogram_plot <- function(eva_table, distr, params) {
 # Returns:
 #   A ggplot2 object displaying the empirical CDF (step function)
 #   and fitted theoretical CDF curve.
-create_cdf_plot <- function(eva_table, distr, params) {
+create_cdf_plot <- function(eva_table, distr, params, data_name = NULL) {
   distr_upper <- toupper(distr)
+  title_base <- paste("Empirical vs Fitted CDF -", distr_upper)
+  title_text <- if (!is.null(data_name) && data_name != "") {
+    paste(data_name, "|", title_base)
+  } else {
+    title_base
+  }
+  
   x_seq <- seq(min(eva_table$data), max(eva_table$data), length.out = 200)
   cdf_vals <- pprobmodel(x_seq, distr, params)
   ggplot() +
@@ -250,7 +286,7 @@ create_cdf_plot <- function(eva_table, distr, params) {
     geom_line(aes(x = x_seq, y = cdf_vals), color = "red", linewidth = 1.0) +
     labs(x = "Value", 
          y = "Cumulative Probability",
-         title = paste("Empirical vs Fitted CDF -", distr_upper)) +
+         title = title_text) +
     get_plot_theme()
 }
 

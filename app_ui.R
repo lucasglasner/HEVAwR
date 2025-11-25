@@ -14,6 +14,17 @@ library(shinythemes)
 create_sidebar_ui <- function() {
   sidebarPanel(
     width = 2,
+    # Data name section
+    h5(strong("Data Name")),
+    textInput(
+      "data_name",
+      NULL,
+      value = "Example",
+      placeholder = "e.g., Station_1923812"
+    ),
+    p("Name for identifying this dataset",
+      style = "font-size: 0.9em; color: #666; margin-top: -10px;"),
+    hr(),
     # Data upload section
     h5(strong("Data Input")),
     fileInput(
@@ -156,7 +167,7 @@ create_fitting_results_tab <- function() {
             style = "font-size: 0.9em; color: #666; text-align: center;"),
           fluidRow(
             column(
-              4,
+              6,
               numericInput(
                 "ci_level", "Confidence Level:",
                 value = 0.95, min = 0.5,
@@ -164,19 +175,11 @@ create_fitting_results_tab <- function() {
               )
             ),
             column(
-              4,
+              6,
               numericInput(
                 "n_bootstrap", "Bootstrap Iterations:",
                 value = 100, min = 100,
                 max = 10000, step = 100
-              )
-            ),
-            column(
-              4,
-              checkboxInput(
-                "parallel_bootstrap",
-                "Use Parallel",
-                value = FALSE
               )
             )
           ),
@@ -247,6 +250,51 @@ create_fitting_results_tab <- function() {
 #   download button.
 create_plots_tab <- function() {
   tabPanel(HTML("<i class='fa fa-chart-area'></i> Auxiliary Plots"),
+    fluidRow(
+      column(12,
+        h4("Distribution Settings", style = "text-align: center;"),
+        fluidRow(
+          column(4, offset = 2,
+            selectInput("aux_distribution", "Select Distribution:",
+                        choices = c("Normal" = "norm",
+                                  "Lognormal" = "lognorm",
+                                  "Gamma" = "gamma",
+                                  "Pearson Type III" = "pearson3",
+                                  "Log-Pearson Type III" = "logpearson3",
+                                  "Gumbel" = "gumbel",
+                                  "GEV" = "gev"),
+                        selected = "gev")
+          ),
+          column(4,
+            selectInput("aux_method", "Fitting Method:",
+                        choices = c("L-moments" = "lmme",
+                                  "Method of Moments" = "mme",
+                                  "Maximum Likelihood" = "mle"),
+                        selected = "lmme")
+          )
+        ),
+        hr()
+      )
+    ),
+    fluidRow(
+      column(12,
+        div(
+          style = "text-align: center; margin-bottom: 10px;",
+          actionButton(
+            "aux_run_analysis", "Run Analysis",
+            class = "btn-primary btn-md",
+            icon = icon("play")
+          ),
+          downloadButton(
+            "aux_download_report",
+            "Download Excel Report",
+            class = "btn-success btn-md",
+            icon = icon("file-excel")
+          )
+        ),
+        hr()
+      )
+    ),
     fluidRow(
       column(
         6,
