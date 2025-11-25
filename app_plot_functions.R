@@ -2,6 +2,7 @@
 # Contains all plotting logic organized by plot type
 
 library(ggplot2)
+library(scales)
 
 # ==================== Plot Theme Configuration ==================== #
 

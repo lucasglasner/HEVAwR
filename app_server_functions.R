@@ -1,6 +1,7 @@
 # Server Logic Functions for EVA Shiny App
 # Contains core analysis, data processing, and reactive logic
 
+library(shiny)
 library(DT)
 library(openxlsx)
 library(tibble)

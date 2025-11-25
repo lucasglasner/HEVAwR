@@ -28,6 +28,14 @@ create_sidebar_ui <- function() {
       rows = 5, placeholder = "10.5\n12.3\n15.7\n..."
     ),
     hr(),
+    checkboxInput(
+      "handle_zeros",
+      "Handle zero values",
+      value = TRUE
+    ),
+    p("When checked, zero values are removed and probabilities are adjusted",
+      style = "font-size: 0.85em; color: #666; margin-top: -10px;"),
+    hr(),
     h5("Return Periods"),
     textInput(
       "target_rperiods",

@@ -47,6 +47,11 @@ server <- function(input, output, session) {
   # ============= Data Preview Outputs ============= #
   output$data_summary <- renderPrint({
     req(rv$data)
+    # Add dependencies to trigger refresh
+    input$handle_zeros
+    input$manual_data
+    input$target_rperiods
+    
     cat("Number of observations:", length(rv$data), "\n")
     cat("Non-zero values:", sum(rv$data != 0, na.rm = TRUE), "\n")
     cat("Missing values:", sum(is.na(rv$data)), "\n")
@@ -54,6 +59,11 @@ server <- function(input, output, session) {
   
   output$data_table <- renderDT({
     req(rv$data)
+    # Add dependencies to trigger refresh
+    input$handle_zeros
+    input$manual_data
+    input$target_rperiods
+    
     n <- length(rv$data)
     sorted_data <- sort(rv$data, decreasing = TRUE)
     empirical_prob <- (1:n) / (n + 1)
@@ -81,14 +91,26 @@ server <- function(input, output, session) {
   
   output$sample_stats <- renderUI({
     req(rv$data)
-    stats <- get_sample_statistics(rv$data, remove_zeros = TRUE)
+    # Add dependencies to trigger refresh
+    input$handle_zeros
+    input$manual_data
+    input$target_rperiods
+    
+    stats <- get_sample_statistics(rv$data, remove_zeros = input$handle_zeros)
     fmt <- function(x) {
       v <- as.numeric(x)
       if (is.na(v) || !is.finite(v)) return("—")
       format(round(v, 3), nsmall = 3)
     }
+    
+    header_text <- if (input$handle_zeros) {
+      "(Non-zero values only)"
+    } else {
+      "(All values)"
+    }
+    
     tagList(
-      h5("(Non-zero values only)", 
+      h5(header_text, 
          style = "text-align: center;"),
       tags$table(
         class = "table table-bordered table-hover",
@@ -140,7 +162,7 @@ server <- function(input, output, session) {
         method = input$method,
         distr = input$distribution,
         target_rperiods = input$target_rperiods,
-        fix_zeros = TRUE
+        fix_zeros = input$handle_zeros
       )
       
       rv$fitted_params <- rv$results$params
@@ -162,10 +184,12 @@ server <- function(input, output, session) {
     req(rv$results)
     gof <- run_gof_tests(rv$data, rv$results$distr, 
                          as.numeric(rv$results$params))
-    for (i in 1:nrow(gof)) {
-      cat(sprintf("%s: stat=%.4f, p=%.4f %s\n",
-                  gof$Test[i], gof$Statistic[i], 
-                  gof$`P-Value`[i], gof$Passed[i]))
+    if (nrow(gof) > 0) {
+      for (i in seq_len(nrow(gof))) {
+        cat(sprintf("%s: stat=%.4f, p=%.4f %s\n",
+                    gof$Test[i], gof$Statistic[i], 
+                    gof$`P-Value`[i], gof$Passed[i]))
+      }
     }
   })
   
@@ -191,7 +215,7 @@ server <- function(input, output, session) {
       results = rv$results,
       manual_params = manual_params,
       target_rperiods = input$target_rperiods,
-      fix_zeros = TRUE
+      fix_zeros = input$handle_zeros
     )
   })
   
@@ -211,7 +235,7 @@ server <- function(input, output, session) {
         ci_level = input$ci_level,
         target_rperiods = input$target_rperiods,
         statistics = rv$results$statistics,
-        fix_zeros = TRUE,
+        fix_zeros = input$handle_zeros,
         parallel = input$parallel_bootstrap
       )
       
@@ -456,7 +480,7 @@ server <- function(input, output, session) {
         method = method,
         distr = distr,
         target_rperiods = input$target_rperiods,
-        fix_zeros = TRUE
+        fix_zeros = input$handle_zeros
       )
       rv$comparison_results[[distr]] <- result
     }
@@ -529,7 +553,7 @@ server <- function(input, output, session) {
           results = rv$comparison_results[[distr]],
           manual_params = new_params,
           target_rperiods = input$target_rperiods,
-          fix_zeros = TRUE
+          fix_zeros = input$handle_zeros
         )
         
         rv$comparison_results[[distr]] <- updated_result
@@ -697,7 +721,7 @@ server <- function(input, output, session) {
         method = method,
         distr = distr,
         target_rperiods = input$target_rperiods,
-        fix_zeros = TRUE
+        fix_zeros = input$handle_zeros
       )
       # Store with unique key (method name)
       rv$method_comparison_results[[method]] <- result
@@ -781,7 +805,7 @@ server <- function(input, output, session) {
           results = rv$method_comparison_results[[method]],
           manual_params = new_params,
           target_rperiods = input$target_rperiods,
-          fix_zeros = TRUE
+          fix_zeros = input$handle_zeros
         )
         
         rv$method_comparison_results[[method]] <- updated_result
