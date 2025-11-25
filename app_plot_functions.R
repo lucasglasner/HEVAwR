@@ -69,8 +69,22 @@ create_prob_plot_rperiod <- function(eva_table,
                                      model_quant,
                                      distr,
                                      metrics = NULL,
-                                     ci_results = NULL) {
+                                     ci_results = NULL,
+                                     method = NULL,
+                                     ylim = NULL) {
   distr_upper <- toupper(distr)
+  # Build title with method when provided
+  title_text <- if (!is.null(method)) {
+    method_label <- switch(method,
+      "lmme" = "L-moments",
+      "mme" = "Method of Moments",
+      "mle" = "Maximum Likelihood",
+      method
+    )
+    paste("Probability Plot -", sprintf("%s (%s)", distr_upper, method_label))
+  } else {
+    paste("Probability Plot -", distr_upper)
+  }
   p <- ggplot() +
     geom_point(data = eva_table,
                aes(x = rperiod, y = data),
@@ -79,8 +93,14 @@ create_prob_plot_rperiod <- function(eva_table,
               color = "red", linewidth = 1.0) +
     scale_x_log10() +
     labs(x = "Return Period (years)",
-         y = "Return Level") +
+         y = "Return Level",
+         title = title_text) +
     get_plot_theme()
+  
+  # Apply custom y-axis limits if provided
+  if (!is.null(ylim) && length(ylim) == 2 && !any(is.na(ylim))) {
+    p <- p + ylim(ylim[1], ylim[2])
+  }
   # Add metrics annotation if provided
   if (!is.null(metrics)) {
     metrics_label <- create_metrics_label(metrics)
@@ -129,8 +149,21 @@ create_prob_plot_rperiod <- function(eva_table,
 create_prob_plot_pexc <- function(eva_table,
                                    model_pexc,
                                    model_quant,
-                                   distr) {
+                                   distr,
+                                   method = NULL) {
   distr_upper <- toupper(distr)
+  # Build title with method when provided
+  title_text <- if (!is.null(method)) {
+    method_label <- switch(method,
+      "lmme" = "L-moments",
+      "mme" = "Method of Moments",
+      "mle" = "Maximum Likelihood",
+      method
+    )
+    paste("Probability Plot -", sprintf("%s (%s)", distr_upper, method_label))
+  } else {
+    paste("Probability Plot -", distr_upper)
+  }
   ggplot() +
     geom_point(data = eva_table,
                aes(x = pexc, y = data),
@@ -140,7 +173,7 @@ create_prob_plot_pexc <- function(eva_table,
     scale_x_log10() +
     labs(x = "Exceedance Probability",
          y = "Return Level",
-         title = paste("Probability Plot -", distr_upper)) +
+         title = title_text) +
     get_plot_theme()
 }
 
@@ -299,15 +332,15 @@ create_comparison_plot <- function(comparison_results) {
   # Build ✓ / ✗ summary (Chi2, KS, CVM, AD) based on p-value > 0.05.
   has_metrics <- all(vapply(comparison_results, function(r) !is.null(r$metrics), logical(1)))
   if (has_metrics) {
-    gof_lines <- c("DIST  KS  CVM  AD")
+    gof_lines <- c("DIST         KS  CVM AD")
     symbol_for <- function(p) {
-      if (is.na(p)) return("NA  ")
+      if (is.na(p)) return("NA")
       if (p > 0.05) "✓" else "✗"
     }
     for (distr in names(comparison_results)) {
       mets <- comparison_results[[distr]]$metrics
       pv <- function(name) if (name %in% rownames(mets)) as.numeric(mets[name, 1]) else NA_real_
-      line <- sprintf("%-5s %-3s  %-3s  %-3s", toupper(distr),
+      line <- sprintf("%-12s %-3s %-3s %-2s", toupper(distr),
               symbol_for(pv("kspvalue")),
                       symbol_for(pv("cvmpvalue")),
                       symbol_for(pv("adpvalue")))
@@ -406,9 +439,9 @@ create_method_comparison_plot <- function(method_comparison_results) {
   # Build ✓ / ✗ summary (KS, CVM, AD) based on p-value > 0.05.
   has_metrics <- all(vapply(method_comparison_results, function(r) !is.null(r$metrics), logical(1)))
   if (has_metrics) {
-    gof_lines <- c("METHOD  KS  CVM  AD")
+    gof_lines <- c("METHOD  KS  CVM AD")
     symbol_for <- function(p) {
-      if (is.na(p)) return("NA  ")
+      if (is.na(p)) return("NA")
       if (p > 0.05) "✓" else "✗"
     }
     for (method in names(method_comparison_results)) {
@@ -420,7 +453,7 @@ create_method_comparison_plot <- function(method_comparison_results) {
       )
       mets <- method_comparison_results[[method]]$metrics
       pv <- function(name) if (name %in% rownames(mets)) as.numeric(mets[name, 1]) else NA_real_
-      line <- sprintf("%-6s  %-3s  %-3s  %-3s", method_label,
+      line <- sprintf("%-7s %-3s %-3s %-2s", method_label,
               symbol_for(pv("kspvalue")),
                       symbol_for(pv("cvmpvalue")),
                       symbol_for(pv("adpvalue")))

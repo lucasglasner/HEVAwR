@@ -15,7 +15,7 @@ create_sidebar_ui <- function() {
   sidebarPanel(
     width = 2,
     # Data upload section
-    h5("Data Input"),
+    h5(strong("Data Input")),
     fileInput(
       "datafile", NULL,
       accept = c(".csv", ".txt")
@@ -36,13 +36,29 @@ create_sidebar_ui <- function() {
     p("When checked, zero values are removed and probabilities are adjusted",
       style = "font-size: 0.85em; color: #666; margin-top: -10px;"),
     hr(),
-    h5("Return Periods"),
+    h5(strong("Return Periods")),
     textInput(
       "target_rperiods",
       "Target return periods (comma-separated):",
       value = "2, 5, 10, 20, 25, 50, 100, 150, 200"
     ),
-    hr()
+    hr(),
+    h5(strong("References")),
+    tags$div(
+      style = "font-size: 0.85em; color: #555;",
+      tags$p(
+        'Delignette-Muller, M.-L., Dutang, C., Pouillot, R., Denis, J.-B., & Siberchicot, A. (2025). fitdistrplus: Help to Fit of a Parametric Distribution to Non-Censored or Censored Data (Version 1.2-4) [R package]. CRAN.',
+        style = "margin-bottom: 10px;"
+      ),
+      tags$p(
+        "Wilks, D. S. (2011). Statistical methods in the atmospheric sciences (Vol. 100). Academic press.",
+        style = "margin-bottom: 10px;"
+      ),
+      tags$p(
+        "Hosking, J. R. M., & Wallis, J. R. (1997). Regional frequency analysis (p. 240).",
+        style = "margin-bottom: 10px;"
+      )
+    )
   )
 }
 
@@ -51,7 +67,7 @@ create_sidebar_ui <- function() {
 #   A Shiny tabPanel object displaying uploaded data summary,
 #   interactive data table, and sample statistics.
 create_data_preview_tab <- function() {
-  tabPanel("Data Preview",
+  tabPanel(HTML("<i class='fa fa-table'></i> Data Preview"),
            h4("Sample Statistics", style = "text-align: center;"),
            uiOutput("sample_stats"),
            h4("Uploaded Data", style = "text-align: center;"),
@@ -68,7 +84,7 @@ create_data_preview_tab <- function() {
 #   computation options, main probability plot, GOF tests table,
 #   quantiles table, and Excel report download button.
 create_fitting_results_tab <- function() {
-  tabPanel("Fitting Tool",
+  tabPanel(HTML("<i class='fa fa-chart-line'></i> Fitting Tool"),
     fluidRow(
       column(12,
         h4("Distribution Settings", style = "text-align: center;"),
@@ -175,10 +191,38 @@ create_fitting_results_tab <- function() {
       ),
       column(8,
         uiOutput("prob_plot_title"),
-        downloadButton(
-          "download_prob_rperiod",
-          "Download Plot",
-          class = "btn-sm"
+        fluidRow(
+          column(3,
+            downloadButton(
+              "download_prob_rperiod",
+              "Download Plot",
+              class = "btn-sm"
+            )
+          ),
+          column(3,
+            numericInput(
+              "ylim_min",
+              "Y-axis Min:",
+              value = NA,
+              step = 1
+            )
+          ),
+          column(3,
+            numericInput(
+              "ylim_max",
+              "Y-axis Max:",
+              value = NA,
+              step = 1
+            )
+          ),
+          column(3,
+            actionButton(
+              "reset_ylim",
+              "Auto Y-axis",
+              class = "btn-secondary btn-sm",
+              style = "margin-top: 25px;"
+            )
+          )
         ),
         plotOutput("prob_plot_rperiod", height = "500px"),
         hr()
@@ -202,7 +246,7 @@ create_fitting_results_tab <- function() {
 #   PDF, and empirical vs fitted CDF. Each plot includes a
 #   download button.
 create_plots_tab <- function() {
-  tabPanel("Auxiliary Plots",
+  tabPanel(HTML("<i class='fa fa-chart-area'></i> Auxiliary Plots"),
     fluidRow(
       column(
         6,
@@ -260,7 +304,7 @@ create_plots_tab <- function() {
 #   parameters with manual adjustment capability, and showing a
 #   comparison probability plot.
 create_method_comparison_tab <- function() {
-  tabPanel("Method Comparison",
+  tabPanel(HTML("<i class='fa fa-balance-scale'></i> Method Comparison"),
     h3("Multi-Method Comparison", style = "text-align: center;"),
     fluidRow(
       column(12,
@@ -350,7 +394,7 @@ create_method_comparison_tab <- function() {
 #   adjustment capability, and showing a comparison probability
 #   plot.
 create_model_comparison_tab <- function() {
-  tabPanel("Model Comparison",
+  tabPanel(HTML("<i class='fa fa-layer-group'></i> Model Comparison"),
     h3("Multi-Distribution Comparison", style = "text-align: center;"),
     fluidRow(
       column(12,

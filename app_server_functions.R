@@ -355,7 +355,7 @@ create_excel_report <- function(results, filename, ci_results = NULL,
   # Create workbook
   wb <- createWorkbook()
   # Add worksheets
-  addWorksheet(wb, sheetName = "EVA_Table")
+  addWorksheet(wb, sheetName = "Probability_Table")
   addWorksheet(wb, sheetName = "Statistics")
   addWorksheet(wb, sheetName = "CalibrationParams")
   addWorksheet(wb, sheetName = "FitModel")
@@ -372,7 +372,7 @@ create_excel_report <- function(results, filename, ci_results = NULL,
     shape = ifelse(length(results$params) >= 3, results$params[3], NA)
   )
   # Write data to worksheets
-  writeData(wb, sheet = "EVA_Table", x = results$eva_table)
+  writeData(wb, sheet = "Probability_Table", x = results$eva_table)
   writeData(wb, sheet = "Statistics", x = results$statistics)
   writeData(wb, sheet = "CalibrationParams", x = param_df)
   # Prepare FitModel data with optional CI

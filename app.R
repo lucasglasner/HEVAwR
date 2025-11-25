@@ -80,7 +80,7 @@ server <- function(input, output, session) {
     datatable(
       df,
       options = list(
-        pageLength = 5,
+        pageLength = 10,
         columnDefs = list(
           list(className = 'dt-center', targets = '_all')
         )
@@ -141,13 +141,19 @@ server <- function(input, output, session) {
     )
   })
   
-  # ============= Clear CI on Changes ============= #
+  # ============= Clear Results on Distribution/Method Change ============= #
   observeEvent(input$distribution, {
     rv$ci_results <- NULL
+    rv$results <- NULL
+    rv$fitted_params <- NULL
+    rv$initial_params <- NULL
   }, ignoreInit = TRUE)
   
   observeEvent(input$method, {
     rv$ci_results <- NULL
+    rv$results <- NULL
+    rv$fitted_params <- NULL
+    rv$initial_params <- NULL
   }, ignoreInit = TRUE)
   
   # ============= Main Analysis ============= #
@@ -185,9 +191,12 @@ server <- function(input, output, session) {
     gof <- run_gof_tests(rv$data, rv$results$distr, 
                          as.numeric(rv$results$params))
     if (nrow(gof) > 0) {
+      # Find max test name length for alignment
+      max_name_len <- max(nchar(gof$Test))
       for (i in seq_len(nrow(gof))) {
-        cat(sprintf("%s: stat=%.4f, p=%.4f %s\n",
-                    gof$Test[i], gof$Statistic[i], 
+        cat(sprintf("%-*s: stat=%8.4f, p=%6.4f %s\n",
+                    max_name_len, gof$Test[i], 
+                    gof$Statistic[i], 
                     gof$`P-Value`[i], gof$Passed[i]))
       }
     }
@@ -256,6 +265,12 @@ server <- function(input, output, session) {
     })
   })
   
+  # ============= Reset Y-axis Limits ============= #
+  observeEvent(input$reset_ylim, {
+    updateNumericInput(session, "ylim_min", value = NA)
+    updateNumericInput(session, "ylim_max", value = NA)
+  })
+  
   # ============= GOF Tests and Tables ============= #
   output$quantiles_table <- renderUI({
   req(rv$results)
@@ -314,19 +329,26 @@ server <- function(input, output, session) {
 })  # ============= Plot Outputs ============= #
   output$prob_plot_title <- renderUI({
     req(rv$results)
-    h4(paste("Probability Plot -", toupper(rv$results$distr)), 
-       style = "text-align: center;")
+    # Outside-the-figure title should be generic
+    h4("Probability Plot", style = "text-align: center;")
   })
   
   output$prob_plot_rperiod <- renderPlot({
     req(rv$results)
+    # Prepare ylim vector if both values are provided
+    ylim_vec <- NULL
+    if (!is.na(input$ylim_min) && !is.na(input$ylim_max)) {
+      ylim_vec <- c(input$ylim_min, input$ylim_max)
+    }
     create_prob_plot_rperiod(
       eva_table = rv$results$eva_table,
       model_rperiods = as.numeric(rownames(rv$results$model_quant)),
       model_quant = rv$results$model_quant[, 1],
       distr = rv$results$distr,
       metrics = rv$results$metrics,
-      ci_results = rv$ci_results
+      ci_results = rv$ci_results,
+      method = rv$results$method,
+      ylim = ylim_vec
     )
   })
   
@@ -337,7 +359,8 @@ server <- function(input, output, session) {
       eva_table = rv$results$eva_table,
       model_pexc = 1 / model_rperiods,
       model_quant = rv$results$model_quant[, 1],
-      distr = rv$results$distr
+      distr = rv$results$distr,
+      method = rv$results$method
     )
   })
   
@@ -388,7 +411,8 @@ server <- function(input, output, session) {
         model_quant = rv$results$model_quant[, 1],
         distr = rv$results$distr,
         metrics = rv$results$metrics,
-        ci_results = rv$ci_results
+        ci_results = rv$ci_results,
+        method = rv$results$method
       )
       ggsave(file, plot = p, width = 10, height = 6, dpi = 300)
     }
@@ -406,7 +430,8 @@ server <- function(input, output, session) {
         eva_table = rv$results$eva_table,
         model_pexc = 1 / model_rperiods,
         model_quant = rv$results$model_quant[, 1],
-        distr = rv$results$distr
+        distr = rv$results$distr,
+        method = rv$results$method
       )
       ggsave(file, plot = p, width = 10, height = 6, dpi = 300)
     }
@@ -640,7 +665,7 @@ server <- function(input, output, session) {
       wb <- createWorkbook()
       
       # Add worksheets (same structure as main fitting tool)
-      addWorksheet(wb, "EVA_Table")
+      addWorksheet(wb, "Probability_Table")
       addWorksheet(wb, "Statistics")
       addWorksheet(wb, "CalibrationParams")
       addWorksheet(wb, "FitModel")
@@ -650,8 +675,8 @@ server <- function(input, output, session) {
       # Get first result for common data
       first_result <- rv$comparison_results[[1]]
       
-      # 1. EVA_Table - same for all distributions
-      writeData(wb, "EVA_Table", first_result$eva_table)
+      # 1. Probability_Table - same for all distributions
+      writeData(wb, "Probability_Table", first_result$eva_table)
       
       # 2. Statistics - same for all distributions
       writeData(wb, "Statistics", first_result$statistics)
@@ -898,7 +923,7 @@ server <- function(input, output, session) {
       wb <- createWorkbook()
       
       # Add worksheets (same structure as main fitting tool)
-      addWorksheet(wb, "EVA_Table")
+      addWorksheet(wb, "Probability_Table")
       addWorksheet(wb, "Statistics")
       addWorksheet(wb, "CalibrationParams")
       addWorksheet(wb, "FitModel")
@@ -909,8 +934,8 @@ server <- function(input, output, session) {
       first_result <- rv$method_comparison_results[[1]]
       distr <- input$method_comparison_distribution
       
-      # 1. EVA_Table - same for all methods
-      writeData(wb, "EVA_Table", first_result$eva_table)
+      # 1. Probability_Table - same for all methods
+      writeData(wb, "Probability_Table", first_result$eva_table)
       
       # 2. Statistics - same for all methods
       writeData(wb, "Statistics", first_result$statistics)
