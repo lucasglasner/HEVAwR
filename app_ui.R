@@ -109,63 +109,66 @@ create_fitting_results_tab <- function() {
     ),
     fluidRow(
       column(4,
-        h4("Fitted Parameters (Initial Fit)", style = "text-align: center;"),
-        verbatimTextOutput("initial_params"),
-        hr(),
-        h4("Manual Parameter Adjustment", style = "text-align: center;"),
-        helpText(
-          "Adjust parameters manually and click",
-          "'Recompute' to update results"
-        ),
-        uiOutput("param_controls"),
-        actionButton(
-          "recompute",
-          "Recompute with Manual Parameters",
-          class = "btn-warning",
-          icon = icon("calculator")
-        ),
-        hr(),
-        h4("Confidence Intervals", style = "text-align: center;"),
-        helpText(
-          "Compute bootstrap confidence intervals for",
-          "uncertainty quantification"
-        ),
-        fluidRow(
-          column(
-            4,
-            numericInput(
-              "ci_level", "Confidence Level:",
-              value = 0.95, min = 0.5,
-              max = 0.99, step = 0.01
+        tags$div(
+          style = "height: 500px; overflow-y: auto; padding-right: 10px;",
+          h4("Fitted Parameters (Initial Fit)", style = "text-align: center;"),
+          verbatimTextOutput("initial_params"),
+          hr(),
+          h4("Manual Parameter Adjustment", style = "text-align: center;"),
+          helpText(
+            "Adjust parameters manually and click",
+            "'Recompute' to update results"
+          ),
+          uiOutput("param_controls"),
+          actionButton(
+            "recompute",
+            "Recompute with Manual Parameters",
+            class = "btn-warning",
+            icon = icon("calculator")
+          ),
+          hr(),
+          h4("Confidence Intervals", style = "text-align: center;"),
+          helpText(
+            "Compute bootstrap confidence intervals for",
+            "uncertainty quantification"
+          ),
+          fluidRow(
+            column(
+              4,
+              numericInput(
+                "ci_level", "Confidence Level:",
+                value = 0.95, min = 0.5,
+                max = 0.99, step = 0.01
+              )
+            ),
+            column(
+              4,
+              numericInput(
+                "n_bootstrap", "Bootstrap Iterations:",
+                value = 100, min = 100,
+                max = 10000, step = 100
+              )
+            ),
+            column(
+              4,
+              checkboxInput(
+                "parallel_bootstrap",
+                "Use Parallel",
+                value = FALSE
+              )
             )
           ),
-          column(
-            4,
-            numericInput(
-              "n_bootstrap", "Bootstrap Iterations:",
-              value = 100, min = 100,
-              max = 10000, step = 100
-            )
+          actionButton(
+            "compute_ci",
+            "Compute Confidence Intervals",
+            class = "btn-info",
+            icon = icon("chart-line")
           ),
-          column(
-            4,
-            checkboxInput(
-              "parallel_bootstrap",
-              "Use Parallel",
-              value = FALSE
-            )
-          )
-        ),
-        actionButton(
-          "compute_ci",
-          "Compute Confidence Intervals",
-          class = "btn-info",
-          icon = icon("chart-line")
-        ),
-        hr()
+          hr()
+        )
       ),
       column(8,
-        h4("Probability Plot (Value vs Return Period)", style = "text-align: center;"),
+        uiOutput("prob_plot_title"),
         downloadButton(
           "download_prob_rperiod",
           "Download Plot",
@@ -176,11 +179,7 @@ create_fitting_results_tab <- function() {
       )
     ),
     fluidRow(
-      column(6,
-        h4("Goodness-of-Fit Tests", style = "text-align: center;"),
-        tableOutput("gof_tests")
-      ),
-      column(6,
+      column(12,
         h4("Return Period Quantiles", style = "text-align: center;"),
         uiOutput("quantiles_table")
       )
@@ -241,6 +240,84 @@ create_plots_tab <- function() {
           class = "btn-sm"
         ),
         plotOutput("cdf_plot", height = "400px")
+      )
+    ),
+    br(),
+    hr()
+  )
+}
+
+# Create the method comparison tab for multi-method analysis.
+# Returns:
+#   A Shiny tabPanel object with controls for selecting a single
+#   distribution and multiple fitting methods, displaying their
+#   parameters with manual adjustment capability, and showing a
+#   comparison probability plot.
+create_method_comparison_tab <- function() {
+  tabPanel("Method Comparison",
+    h4("Multi-Method Comparison", style = "text-align: center;"),
+    fluidRow(
+      column(12,
+        h5("Select Distribution and Methods", 
+           style = "text-align: center;"),
+        fluidRow(
+          column(4, offset = 2,
+            selectInput("method_comparison_distribution",
+                       "Distribution:",
+                       choices = c(
+                         "Normal" = "norm",
+                         "Lognormal" = "lognorm",
+                         "Gamma" = "gamma",
+                         "Pearson Type III" = "pearson3",
+                         "Log-Pearson Type III" = "logpearson3",
+                         "Gumbel" = "gumbel",
+                         "GEV" = "gev"
+                       ),
+                       selected = "gev")
+          ),
+          column(4,
+            checkboxGroupInput(
+              "compare_methods",
+              "Fitting Methods:",
+              choices = c(
+                "L-moments" = "lmme",
+                "Method of Moments" = "mme",
+                "Maximum Likelihood" = "mle"
+              ),
+              selected = NULL,
+              inline = FALSE
+            )
+          )
+        ),
+        tags$div(
+          style = "text-align: center;",
+          actionButton(
+            "run_method_comparison",
+            "Run Comparison",
+            class = "btn-primary",
+            icon = icon("chart-line")
+          )
+        ),
+        hr()
+      )
+    ),
+    fluidRow(
+      column(3,
+        h5("Method Parameters", style = "text-align: center;"),
+        tags$div(
+          style = "max-height: 450px; overflow-y: auto;",
+          uiOutput("method_comparison_params_ui")
+        )
+      ),
+      column(9,
+        h5("Comparison Probability Plot", 
+           style = "text-align: center;"),
+        downloadButton(
+          "download_method_comparison_plot",
+          "Download Plot",
+          class = "btn-sm"
+        ),
+        plotOutput("method_comparison_plot", height = "450px")
       )
     ),
     br(),
@@ -345,7 +422,8 @@ create_ui <- function() {
           create_data_preview_tab(),
           create_fitting_results_tab(),
           create_plots_tab(),
-          create_model_comparison_tab()
+          create_model_comparison_tab(),
+          create_method_comparison_tab()
         )
       )
     )

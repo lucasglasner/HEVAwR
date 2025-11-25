@@ -72,7 +72,7 @@ bic_score <- function(x, distr, params) {
 #   A list with the KS statistic, the pvalue and a bool if the model pass the
 #   test or not (0.05 confidence by default).
 ks_gof <- function(x, distr, params, alpha = 0.05) {
-  ks <- ks.test(x, pprobmodel, distr, params) # nolint
+  ks <- suppressWarnings(ks.test(x, pprobmodel, distr, params)) # nolint
   return(list(
     statistic = ks$statistic,
     pvalue = ks$p.value,

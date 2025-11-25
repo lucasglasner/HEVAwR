@@ -31,7 +31,8 @@ server <- function(input, output, session) {
     fitted_params = NULL,
     initial_params = NULL,
     ci_results = NULL,
-    comparison_results = list()
+    comparison_results = list(),
+    method_comparison_results = list()
   )
   
   # ============= Data Loading ============= #
@@ -149,10 +150,19 @@ server <- function(input, output, session) {
   # ============= Parameter Controls ============= #
   output$initial_params <- renderPrint({
     req(rv$initial_params)
+    req(rv$results)
     cat("Distribution:", input$distribution, "\n")
     cat("Method:", input$method, "\n\n")
     cat("Parameters:\n")
     print(round(rv$initial_params, 3))
+    cat("\nGoodness-of-Fit Tests:\n")
+    gof <- run_gof_tests(rv$data, rv$results$distr, 
+                         as.numeric(rv$results$params))
+    for (i in 1:nrow(gof)) {
+      cat(sprintf("%s: stat=%.4f, p=%.4f %s\n",
+                  gof$Test[i], gof$Statistic[i], 
+                  gof$`P-Value`[i], gof$Passed[i]))
+    }
   })
   
   output$param_controls <- renderUI({
@@ -218,54 +228,68 @@ server <- function(input, output, session) {
   })
   
   # ============= GOF Tests and Tables ============= #
-  output$gof_tests <- renderTable({
-    req(rv$results)
-    req(rv$data)
-    run_gof_tests(rv$data, rv$results$distr, as.numeric(rv$results$params))
-  }, rownames = FALSE, align = 'c', width = "100%", 
-  spacing = "s", bordered = TRUE)
-  
-output$quantiles_table <- renderUI({
+  output$quantiles_table <- renderUI({
   req(rv$results)
   qt <- format_quantiles_table(rv$results$target_quant, rv$ci_results)
-  # Return periods as numeric
+  # Return periods as columns
   periods <- rownames(qt)
   values <- as.numeric(qt[, 1])
   lower <- if (!is.null(rv$ci_results) && !is.null(qt$`Lower CI`)) as.numeric(qt$`Lower CI`) else NULL
   upper <- if (!is.null(rv$ci_results) && !is.null(qt$`Upper CI`)) as.numeric(qt$`Upper CI`) else NULL
-  fmt_period <- function(x) {
-    v <- as.numeric(x)
-    if (is.na(v) || !is.finite(v)) return("—")
-    as.character(round(v))
-  }
+  
   fmt <- function(x) {
     v <- as.numeric(x)
     if (is.na(v) || !is.finite(v)) return("—")
     format(round(v, 3), nsmall = 3)
   }
+  
+  # Build table header with return periods as columns
+  header_row <- tags$tr(
+    tags$th("", style = "text-align: center;"),
+    lapply(periods, function(p) 
+      tags$th(as.character(round(as.numeric(p))), 
+              style = "text-align: center;"))
+  )
+  
+  # Build return level row
+  level_row <- tags$tr(
+    tags$th("Return Level", style = "text-align: center;"),
+    lapply(values, function(v) tags$td(fmt(v)))
+  )
+  
+  # Build CI rows if available
+  lower_row <- if (!is.null(lower)) {
+    tags$tr(
+      tags$th("Lower CI", style = "text-align: center;"),
+      lapply(lower, function(v) tags$td(fmt(v)))
+    )
+  } else NULL
+  
+  upper_row <- if (!is.null(upper)) {
+    tags$tr(
+      tags$th("Upper CI", style = "text-align: center;"),
+      lapply(upper, function(v) tags$td(fmt(v)))
+    )
+  } else NULL
+  
   tags$table(
     class = "table table-bordered table-hover",
-    style = "text-align: center; margin: auto; max-width: 800px;",
-    tags$thead(
-      tags$tr(
-        tags$th("Return Period", style = "text-align: center;"),
-        tags$th("Return Level", style = "text-align: center;"),
-        if (!is.null(lower)) tags$th("Lower CI", style = "text-align: center;"),
-        if (!is.null(upper)) tags$th("Upper CI", style = "text-align: center;")
-      )
-    ),
+    style = "text-align: center; margin: auto;",
+    tags$thead(header_row),
     tags$tbody(
-      lapply(seq_along(periods), function(i)
-        tags$tr(
-          tags$td(fmt_period(periods[i])),
-          tags$td(fmt(values[i])),
-          if (!is.null(lower)) tags$td(fmt(lower[i])),
-          if (!is.null(upper)) tags$td(fmt(upper[i]))
-        )
-      )
+      level_row,
+      lower_row,
+      upper_row
     )
   )
 })  # ============= Plot Outputs ============= #
+  output$prob_plot_title <- renderUI({
+    req(rv$results)
+    distr_upper <- toupper(rv$results$distr)
+    h4(paste("Probability Plot -", distr_upper), 
+       style = "text-align: center;")
+  })
+  
   output$prob_plot_rperiod <- renderPlot({
     req(rv$results)
     create_prob_plot_rperiod(
@@ -522,6 +546,137 @@ output$quantiles_table <- renderUI({
     content = function(file) {
       req(rv$comparison_results)
       p <- create_comparison_plot(rv$comparison_results)
+      ggsave(file, plot = p, width = 12, height = 7, dpi = 300)
+    }
+  )
+  
+  # ============= Method Comparison ============= #
+  
+  # Run comparison analysis for selected methods
+  observeEvent(input$run_method_comparison, {
+    req(rv$data)
+    req(input$compare_methods)
+    
+    # Clear previous results
+    rv$method_comparison_results <- list()
+    
+    # Get the common distribution
+    distr <- input$method_comparison_distribution
+    
+    # Run analysis for each selected method
+    for (method in input$compare_methods) {
+      result <- run_eva_analysis(
+        data = rv$data,
+        method = method,
+        distr = distr,
+        target_rperiods = input$target_rperiods,
+        fix_zeros = TRUE
+      )
+      # Store with unique key (method name)
+      rv$method_comparison_results[[method]] <- result
+    }
+  })
+  
+  # Generate parameter UI for all compared methods
+  output$method_comparison_params_ui <- renderUI({
+    req(rv$method_comparison_results)
+    req(length(rv$method_comparison_results) > 0)
+    
+    distr <- input$method_comparison_distribution
+    param_names <- get_param_names(distr)
+    
+    # Create a vertical list of method parameter sections
+    param_sections <- lapply(names(rv$method_comparison_results), function(method) {
+      result <- rv$method_comparison_results[[method]]
+      
+      method_label <- switch(method,
+        "lmme" = "L-moments",
+        "mme" = "Method of Moments",
+        "mle" = "Maximum Likelihood"
+      )
+      
+      tags$div(
+        style = "margin-bottom: 8px;",
+        tags$div(
+          style = "padding: 8px; border: 1px solid #ddd; 
+                   border-radius: 5px; background-color: #f9f9f9;",
+          h6(method_label, style = "text-align: center; 
+                                      font-weight: bold; 
+                                      margin-top: 0px;
+                                      margin-bottom: 8px;
+                                      font-size: 13px;"),
+          lapply(seq_along(param_names), function(i) {
+            param_id <- paste0("mcomp_", method, "_param", i)
+            tags$div(
+              style = "margin-bottom: 5px;",
+              numericInput(
+                param_id,
+                paste0(param_names[i], ":"),
+                value = round(as.numeric(result$params[i]), 4),
+                step = 0.001
+              )
+            )
+          }),
+          actionButton(
+            paste0("update_mcomp_", method),
+            "Update",
+            class = "btn-sm btn-info btn-block",
+            icon = icon("sync"),
+            style = "margin-top: 5px; padding: 4px 8px; font-size: 12px;"
+          )
+        )
+      )
+    })
+    
+    tagList(param_sections)
+  })
+  
+  # Handle parameter updates for each method
+  observe({
+    req(rv$method_comparison_results)
+    
+    distr <- input$method_comparison_distribution
+    param_names <- get_param_names(distr)
+    
+    lapply(names(rv$method_comparison_results), function(method) {
+      observeEvent(input[[paste0("update_mcomp_", method)]], {
+        new_params <- sapply(seq_along(param_names), function(i) {
+          input[[paste0("mcomp_", method, "_param", i)]]
+        })
+        
+        # Recompute with manual parameters
+        updated_result <- recompute_with_manual_params(
+          results = rv$method_comparison_results[[method]],
+          manual_params = new_params,
+          target_rperiods = input$target_rperiods,
+          fix_zeros = TRUE
+        )
+        
+        rv$method_comparison_results[[method]] <- updated_result
+      })
+    })
+  })
+  
+  # Method comparison plot
+  output$method_comparison_plot <- renderPlot({
+    req(rv$method_comparison_results)
+    req(length(rv$method_comparison_results) > 0)
+    
+    create_method_comparison_plot(rv$method_comparison_results)
+  })
+  
+  # Download method comparison plot
+  output$download_method_comparison_plot <- downloadHandler(
+    filename = function() {
+      paste0(
+        "method_comparison_plot_", 
+        format(Sys.time(), "%Y%m%d_%H%M%S"), 
+        ".png"
+      )
+    },
+    content = function(file) {
+      req(rv$method_comparison_results)
+      p <- create_method_comparison_plot(rv$method_comparison_results)
       ggsave(file, plot = p, width = 12, height = 7, dpi = 300)
     }
   )

@@ -78,8 +78,7 @@ create_prob_plot_rperiod <- function(eva_table,
               color = "red", linewidth = 1.0) +
     scale_x_log10() +
     labs(x = "Return Period (years)",
-         y = "Return Level",
-         title = paste("Probability Plot -", distr_upper)) +
+         y = "Return Level") +
     get_plot_theme()
   # Add metrics annotation if provided
   if (!is.null(metrics)) {
@@ -307,6 +306,119 @@ create_comparison_plot <- function(comparison_results) {
       mets <- comparison_results[[distr]]$metrics
       pv <- function(name) if (name %in% rownames(mets)) as.numeric(mets[name, 1]) else NA_real_
       line <- sprintf("%-5s %-3s  %-3s  %-3s", toupper(distr),
+              symbol_for(pv("kspvalue")),
+                      symbol_for(pv("cvmpvalue")),
+                      symbol_for(pv("adpvalue")))
+      gof_lines <- c(gof_lines, line)
+    }
+    overlay_text <- paste(gof_lines, collapse = "\n")
+    x_min <- min(model_data$T, na.rm = TRUE)
+    y_max <- max(model_data$Value, na.rm = TRUE)
+    p <- p + annotate(
+      "text", x = x_min, y = y_max, label = overlay_text,
+      hjust = 0, vjust = 1, family = "mono", size = 3, lineheight = 0.95,
+      fontface = "plain", color = "black"
+    )
+  }
+  
+  return(p)
+}
+
+# Create a comparison probability plot showing multiple
+# fitting methods for a single distribution.
+# Args:
+#   method_comparison_results: Named list where each element is a
+#                              method result (from run_eva_analysis).
+# Returns:
+#   A ggplot object showing empirical data and fitted curves
+#   for all methods.
+create_method_comparison_plot <- function(method_comparison_results) {
+  # Get empirical data from first method
+  first_result <- method_comparison_results[[1]]
+  eva_table <- first_result$eva_table
+  
+  # Prepare empirical data
+  empirical_data <- data.frame(
+    T = eva_table$rperiod,
+    Value = eva_table$data
+  )
+  
+  # Prepare model data for all methods
+  model_data_list <- lapply(names(method_comparison_results), function(method) {
+    result <- method_comparison_results[[method]]
+    model_table <- result$model_quant
+    
+    # Extract T values from rownames and Value from column
+    T_values <- as.numeric(rownames(model_table))
+    Value_values <- model_table[, 1]
+    
+    method_label <- switch(method,
+      "lmme" = "L-moments",
+      "mme" = "Method of Moments",
+      "mle" = "Maximum Likelihood",
+      method
+    )
+    
+    data.frame(
+      T = T_values,
+      Value = Value_values,
+      Method = method_label
+    )
+  })
+  
+  model_data <- do.call(rbind, model_data_list)
+  
+  # Create base plot
+  p <- ggplot() +
+    # Model curves
+    geom_line(
+      data = model_data,
+      aes(x = T, y = Value, color = Method),
+      linewidth = 1.2
+    ) +
+    # Empirical points
+    geom_point(
+      data = empirical_data,
+      aes(x = T, y = Value),
+      size = 2.5,
+      alpha = 0.7,
+      color = "black"
+    ) +
+    scale_x_log10(
+      breaks = scales::trans_breaks("log10", function(x) 10^x),
+      labels = scales::trans_format("log10", scales::math_format(10^.x))
+    ) +
+    labs(
+      x = "Return Period (years)",
+      y = "Return Level",
+      color = "Method"
+    ) +
+    get_plot_theme() +
+    theme(
+      legend.position = "right",
+      legend.title = element_text(size = 12, face = "bold"),
+      legend.text = element_text(size = 10)
+    )
+  
+  # ==================== GOF Summary Text Overlay ==================== #
+  # Build ✓ / ✗ summary (KS, CVM, AD) based on p-value > 0.05.
+  has_metrics <- all(vapply(method_comparison_results, function(r) !is.null(r$metrics), logical(1)))
+  if (has_metrics) {
+    gof_lines <- c("METHOD  KS  CVM  AD")
+    symbol_for <- function(p) {
+      if (is.na(p)) return("NA  ")
+      if (p > 0.05) "✓" else "✗"
+    }
+    for (method in names(method_comparison_results)) {
+      method_label <- switch(method,
+        "lmme" = "L-mom",
+        "mme" = "MOM",
+        "mle" = "MLE",
+        method
+      )
+      mets <- method_comparison_results[[method]]$metrics
+      pv <- function(name) if (name %in% rownames(mets)) as.numeric(mets[name, 1]) else NA_real_
+      line <- sprintf("%-6s  %-3s  %-3s  %-3s", method_label,
               symbol_for(pv("kspvalue")),
                       symbol_for(pv("cvmpvalue")),
                       symbol_for(pv("adpvalue")))
