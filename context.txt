@@ -1,0 +1,985 @@
+# HEVAwR - Hydrological Extreme Value Analysis with R
+# Context Document for Large Language Models
+
+## PROJECT OVERVIEW
+
+HEVAwR is a Shiny-based web application for statistical extreme value analysis (EVA) 
+of hydrological datasets. It provides an interactive interface for fitting probability 
+distributions to extreme values, computing return periods, performing goodness-of-fit 
+tests, and generating confidence intervals through bootstrap methods.
+
+**Primary Use Case**: Analyze extreme hydrological events (floods, droughts, precipitation 
+extremes) to estimate probabilities of exceedance and return periods for risk assessment 
+and infrastructure design.
+
+**Target Users**: Hydrologists, water resource engineers, environmental scientists, and 
+researchers working with extreme value statistics.
+
+## ARCHITECTURE
+
+### File Structure
+```
+HEVAwR/
+├── app.R                      # Main Shiny application entry point
+├── app_ui.R                   # UI component definitions and layout
+├── app_server_functions.R     # Server-side utility functions
+├── app_plot_functions.R       # Plotting functions for all visualizations
+├── fit_utils.R                # Distribution fitting algorithms
+├── test_utils.R               # Goodness-of-fit statistical tests
+├── global_utils.R             # General utility functions
+├── EVA_1DStationary.ipynb     # Jupyter notebook with analysis examples
+├── README.md                  # Project documentation
+├── LICENSE                    # License information
+├── data/
+│   ├── ExampleRunoffData.csv  # Sample dataset for testing
+│   └── Results/               # Analysis results storage
+└── rsconnect/                 # Shiny deployment configuration
+```
+
+### Modular Design Pattern
+
+**Separation of Concerns**:
+1. **UI Layer** (`app_ui.R`): Pure presentation logic, no business logic
+2. **Server Layer** (`app.R`): Reactive programming, state management
+3. **Business Logic** (`fit_utils.R`, `test_utils.R`): Statistical computations
+4. **Visualization** (`app_plot_functions.R`): Plot generation with ggplot2
+5. **Utilities** (`global_utils.R`, `app_server_functions.R`): Helper functions
+
+**Benefits**: 
+- Easy maintenance and debugging
+- Reusable components
+- Clear dependency chain
+- Testable isolated functions
+
+## CORE FUNCTIONALITY
+
+### 1. Data Input and Preprocessing
+
+**Input Methods**:
+- CSV/TXT file upload via `fileInput`
+- Manual data entry via `textAreaInput` (one value per line)
+- Data naming system for report identification (default: "Example")
+
+**Preprocessing**:
+- Optional zero-value handling (removal with probability adjustment)
+- Automatic NA removal
+- Data sorting and ranking for empirical probability computation
+- Empirical exceedance probability: P(exc) = rank / (n + 1)
+- Return period: T = 1 / P(exc)
+
+**Sample Statistics**:
+Computed conditionally based on zero-handling option:
+- Count (total observations)
+- Non-zero count
+- Mean, Standard Deviation
+- Coefficient of Variation (CV)
+- Skewness, Kurtosis
+- Min, Max, Range
+
+### 2. Distribution Fitting
+
+**Supported Distributions** (7 total):
+1. **Normal** (`norm`): μ (mean), σ (standard deviation)
+2. **Lognormal** (`lognorm`): μlog, σlog
+3. **Gamma** (`gamma`): α (shape), β (scale)
+4. **Pearson Type III** (`pearson3`): μ (location), σ (scale), γ (shape/skewness)
+5. **Log-Pearson Type III** (`logpearson3`): μlog, σlog, γlog
+6. **Gumbel** (`gumbel`): μ (location), σ (scale)
+7. **Generalized Extreme Value (GEV)** (`gev`): μ (location), σ (scale), ξ (shape)
+
+**Fitting Methods** (3 primary):
+1. **L-moments** (`lmme`): Linear moments method, robust to outliers
+2. **Method of Moments** (`mme`): Classical moment matching
+3. **Maximum Likelihood** (`mle`): Likelihood optimization
+
+**Implementation**: 
+- Uses `fitdistrplus` package as framework
+- Custom fitting functions in `fit_utils.R` for each distribution
+- Functions: `fit_<distribution>()` returns parameter vector
+- Wrapper: `fit_probmodel(data, distr, method)` dispatches to appropriate fitter
+
+### 3. Goodness-of-Fit Testing
+
+**Three Statistical Tests**:
+1. **Kolmogorov-Smirnov (KS)**: Maximum vertical distance between ECDFs
+2. **Cramér-von Mises (CvM)**: Integrated squared distance between CDFs
+3. **Anderson-Darling (AD)**: Weighted squared distance, emphasizes tails
+
+**Output Format**:
+```
+Goodness-of-Fit Tests:
+Kolmogorov-Smirnov:
+  Statistic: 0.0823
+  p-value: 0.3456
+
+Cramér-von Mises:
+  Statistic: 0.0421
+  p-value: 0.4123
+
+Anderson-Darling:
+  Statistic: 0.2987
+  p-value: 0.5234
+```
+
+**Interpretation**: Higher p-values indicate better fit (typically p > 0.05 acceptable)
+
+### 4. Return Period Analysis
+
+**Target Return Periods**:
+Default: "2, 5, 10, 20, 25, 50, 100, 150, 200" years
+User-configurable via comma-separated input
+
+**Quantile Computation**:
+For each return period T:
+1. Compute exceedance probability: p = 1/T
+2. Compute non-exceedance: F = 1 - p
+3. Apply inverse CDF (quantile function): Q = F⁻¹(p)
+
+**Functions**:
+- `qprobmodel(p, distr, params)`: Quantile function dispatcher
+- Distribution-specific quantile functions in `fit_utils.R`
+
+### 5. Uncertainty Quantification
+
+**Bootstrap Confidence Intervals**:
+- Resampling with replacement from original data
+- Configurable iterations (100-10000, default: 100)
+- Configurable confidence level (0.50-0.99, default: 0.95)
+- **Always runs in series** (parallel option removed for stability)
+
+**Process**:
+1. Generate n bootstrap samples (with replacement)
+2. Fit distribution to each sample
+3. Compute quantiles for each fitted distribution
+4. Calculate percentiles across bootstrap iterations
+5. Extract lower/upper bounds based on confidence level
+
+**Visualization**:
+- Confidence bands plotted as dashed lines on probability plots
+- Shaded region between bounds (optional)
+
+### 6. Comparison Tools
+
+**Model Comparison** (Multiple Distributions, Single Method):
+- Select multiple distributions to compare
+- Fixed fitting method for all
+- Overlay probability plots with different colors
+- Side-by-side parameter display
+- Quantile comparison table
+- GOF statistics for model selection
+
+**Method Comparison** (Single Distribution, Multiple Methods):
+- Select multiple fitting methods
+- Fixed distribution
+- Compare L-moments vs MLE vs Method of Moments
+- Evaluate sensitivity to fitting method choice
+- Useful for understanding estimation uncertainty
+
+**Features**:
+- Interactive selection via checkboxes
+- Synchronized Run Analysis buttons
+- Individual Excel report downloads
+- Combined comparison plots
+
+## USER INTERFACE
+
+### Layout Structure
+
+**Sidebar Panel** (width: 2/12):
+- Data Name input (text field)
+- Data Input section (file upload or manual entry)
+- Handle Zeros checkbox
+- Target Return Periods configuration
+- References section (APA format citations)
+
+**Main Panel** (width: 10/12, tabbed interface):
+
+**Tab 1: Data Preview** (icon: table)
+- Sample statistics cards (responsive to zero handling)
+- Data summary (counts, missing values)
+- Interactive DataTable with 10 rows/page
+- Columns: Index, Value, P(exc), T(years)
+
+**Tab 2: Fitting Tool** (icon: chart-line)
+- Distribution Settings (distribution + method selectors)
+- Run Analysis + Download Report buttons
+- Left column (4/12):
+  * Fitted Parameters display
+  * Goodness-of-Fit tests
+  * Manual Parameter Adjustment controls
+  * Recompute button
+  * Confidence Interval controls
+  * Compute CI button
+- Right column (8/12):
+  * Main probability plot (Return Period vs Value)
+  * Y-axis controls (min/max with auto-reset)
+  * Download plot button
+- Bottom: Return Period Quantiles table
+
+**Tab 3: Auxiliary Plots** (icon: chart-area)
+- Distribution Settings (synchronized with Fitting Tool)
+- Run Analysis + Download Report buttons
+- Four diagnostic plots (2x2 grid):
+  * Exceedance Probability Plot (Value vs P(exc))
+  * Q-Q Plot (theoretical vs empirical quantiles)
+  * Histogram with Fitted PDF
+  * Empirical vs Fitted CDF
+- Each plot has individual download button
+
+**Tab 4: Model Comparison** (icon: layer-group)
+- Distribution selection (multiple checkboxes)
+- Method selection (single)
+- Run Comparison + Download Report buttons
+- Left: Parameter display for all distributions
+- Right: Overlay probability plot
+- Bottom: Quantile comparison table
+
+**Tab 5: Method Comparison** (icon: balance-scale)
+- Distribution selection (single)
+- Method selection (multiple checkboxes)
+- Run Comparison + Download Report buttons
+- Left: Parameter display for all methods
+- Right: Overlay probability plot
+- Bottom: Quantile comparison table
+
+### UI/UX Features
+
+**Synchronization**:
+- Two-way binding between Fitting Tool and Auxiliary Plots selectors
+- Changes in either tab update the other automatically
+- Prevents inconsistent state
+
+**Dynamic Updates**:
+- Results clear when distribution/method changes
+- Statistics refresh when zero-handling toggles
+- Plots respond to manual parameter adjustments
+
+**Visual Polish**:
+- Font Awesome icons on all tabs
+- Bold section headings
+- Flatly Bootstrap theme (professional blue color scheme)
+- Responsive layout with scrollable sections
+- Aligned monospace GOF statistics
+
+## DATA FLOW
+
+### Reactive Programming Model
+
+**ReactiveValues (`rv`)**:
+```r
+rv <- reactiveValues(
+  data = NULL,                           # Raw input data
+  results = NULL,                        # Current fitted model results
+  fitted_params = NULL,                  # Manual or fitted parameters
+  initial_params = NULL,                 # Initial fit (before manual adjustment)
+  ci_results = NULL,                     # Bootstrap confidence intervals
+  comparison_results = list(),           # Model comparison results
+  method_comparison_results = list()     # Method comparison results
+)
+```
+
+**Data Loading Flow**:
+1. User uploads file or pastes data
+2. `observe()` detects input change
+3. Data parsed and stored in `rv$data`
+4. Triggers downstream reactive outputs
+
+**Analysis Flow (Fitting Tool)**:
+1. User clicks "Run Analysis" (`input$run_analysis`)
+2. `observeEvent()` triggered
+3. Data preprocessed (zero handling if enabled)
+4. `run_eva_analysis()` called with distribution + method
+5. Results stored in `rv$results` and `rv$initial_params`
+6. Triggers plot renders and table outputs
+7. Manual parameter UI generated dynamically
+
+**Recomputation Flow**:
+1. User adjusts parameters via numeric inputs
+2. Clicks "Recompute" button
+3. Manual parameters extracted from inputs
+4. Quantiles recomputed with new parameters
+5. `rv$fitted_params` updated
+6. Plots regenerate with new fit line
+
+**Bootstrap Flow**:
+1. User sets CI level and iterations
+2. Clicks "Compute Confidence Intervals"
+3. `compute_bootstrap_ci()` called (series execution only)
+4. Progress modal displayed during computation
+5. Results stored in `rv$ci_results`
+6. CI bands added to probability plot
+
+### Plot Generation Pipeline
+
+**All plots accept `data_name` parameter**:
+- Prepended to plot titles in format: "{DataName} | {PlotType}"
+- Enables dataset identification in reports
+- Consistent across interactive and downloaded plots
+
+**Title Composition Pattern**:
+```r
+title_base <- paste("Probability Plot -", toupper(distribution), "(", method, ")")
+title_text <- if (!is.null(data_name) && data_name != "") {
+  paste(data_name, "|", title_base)
+} else {
+  title_base
+}
+```
+
+**Plot Functions** (`app_plot_functions.R`):
+1. `create_prob_plot_rperiod()`: Main probability plot with return periods
+2. `create_prob_plot_pexc()`: Exceedance probability format
+3. `create_qq_plot()`: Theoretical vs empirical quantiles
+4. `create_histogram_plot()`: Histogram with fitted PDF overlay
+5. `create_cdf_plot()`: Empirical vs fitted CDF
+
+**Rendering**:
+- Interactive: `renderPlot()` with reactive inputs
+- Download: `downloadHandler()` with `ggsave()`
+- Both paths use same plot functions (consistency guaranteed)
+
+## REPORT GENERATION
+
+### Excel Report Structure
+
+**Worksheet: "Probability_Table"** (renamed from "EVA_Table"):
+Columns:
+- Return Period (years)
+- Exceedance Probability
+- Quantile (fitted value)
+- Lower CI (if bootstrap computed)
+- Upper CI (if bootstrap computed)
+
+**Metadata Section**:
+- Distribution type
+- Fitting method
+- Fitted parameters
+- GOF test results
+- Data statistics
+
+**Filename Convention**:
+```
+{DataName}_{ReportType}_{timestamp}.xlsx
+
+Examples:
+- Example_EVA_Report_20251125_143022.xlsx
+- Station_1923812_Model_Comparison_20251125_143045.xlsx
+- Flood_Data_Method_Comparison_20251125_143110.xlsx
+```
+
+**Sanitization**:
+- Spaces replaced with underscores
+- Special characters removed
+- Safe for filesystem across platforms
+
+### Download Handlers
+
+**Main Report** (`download_report`):
+- Full EVA analysis for single distribution/method
+- Includes quantiles, parameters, GOF tests
+
+**Comparison Reports**:
+- `download_model_comparison_report`: Multiple distributions
+- `download_method_comparison_report`: Multiple methods
+- Includes separate sheets for each model/method
+
+**Plot Downloads**:
+- PNG format, 300 DPI
+- Dimensions: 10" x 8"
+- Filename includes data name and plot type
+- High quality for publication
+
+## TECHNICAL IMPLEMENTATION DETAILS
+
+### Key R Packages
+
+**Core Dependencies**:
+- `shiny`: Web application framework
+- `shinythemes`: Bootstrap themes (using Flatly)
+- `DT`: Interactive DataTables
+- `ggplot2`: Grammar of graphics plotting
+- `openxlsx`: Excel file generation
+
+**Statistical Packages**:
+- `fitdistrplus`: Distribution fitting framework
+- `lmomco`: L-moments computation
+- `MASS`: Statistical functions (fitdistr)
+- `e1071`: Skewness and kurtosis
+- `survival`: Survival analysis utilities
+- `goftest`: Goodness-of-fit tests
+
+**Utility Packages**:
+- `tibble`: Modern data frames
+- `scales`: Scale formatting for plots
+- `parallel`: (imported but not used - bootstrap runs in series)
+
+### Distribution Implementation Pattern
+
+Each distribution has 4 core functions:
+
+**1. Fitting Function**: `fit_<distribution>(x, method)`
+```r
+fit_gev <- function(x, method = "lmme") {
+  if (method == "lmme") {
+    lmom_params <- lmomco::lmom.ub(x)
+    gev_params <- lmomco::pargev(lmom_params)
+    return(c(xi = gev_params$para[1],    # location
+             alpha = gev_params$para[2],  # scale
+             kappa = gev_params$para[3])) # shape
+  }
+  # ... other methods
+}
+```
+
+**2. Density Function**: `dprobmodel(x, distr, params)`
+Returns PDF values for plotting
+
+**3. CDF Function**: `pprobmodel(q, distr, params)`
+Returns cumulative probabilities
+
+**4. Quantile Function**: `qprobmodel(p, distr, params)`
+Returns values for given probabilities (inverse CDF)
+
+### Parameter Naming Conventions
+
+**Internal consistency mapping**:
+```
+Normal:       mean, sd
+Lognormal:    meanlog, sdlog  
+Gamma:        shape, scale
+Pearson III:  location, scale, shape
+LP3:          locationlog, scalelog, shapelog
+Gumbel:       location, scale
+GEV:          location, scale, shape
+```
+
+**Display names** (shown to users):
+- GEV: ξ (xi/location), α (alpha/scale), κ (kappa/shape)
+- Gumbel: μ (location), σ (scale)
+- Gamma: α (shape), β (scale)
+
+### Manual Parameter Adjustment System
+
+**Dynamic UI Generation**:
+```r
+output$param_controls <- renderUI({
+  req(rv$initial_params)
+  # Extract parameter names and values
+  # Generate numericInput for each parameter
+  # Return list of input controls
+})
+```
+
+**Recomputation Logic**:
+```r
+observeEvent(input$recompute, {
+  # Extract values from input$param_<name>
+  # Rebuild parameter vector
+  # Store in rv$fitted_params
+  # Triggers plot regeneration
+})
+```
+
+**Use Case**: Fine-tune fit after automatic estimation, incorporate expert knowledge
+
+### Goodness-of-Fit Testing
+
+**Implementation** (`test_utils.R`):
+```r
+gof_ks(x, distr, params)       # Kolmogorov-Smirnov
+gof_cvm(x, distr, params)      # Cramér-von Mises  
+gof_ad(x, distr, params)       # Anderson-Darling
+```
+
+**Process**:
+1. Compute empirical CDF from data
+2. Compute theoretical CDF from fitted distribution
+3. Calculate test statistic
+4. Determine p-value via `goftest` package
+5. Return list(statistic, p.value)
+
+**Display Formatting**:
+```
+Kolmogorov-Smirnov:
+  Statistic: 0.0823
+  p-value: 0.3456
+```
+Fixed-width formatting for alignment
+
+### Bootstrap Confidence Intervals
+
+**Function**: `compute_bootstrap_ci(data, distr, method, rperiods, level, niters)`
+
+**Algorithm**:
+```r
+1. Parse target return periods
+2. Compute probabilities: p = 1 - (1/T)
+3. Initialize storage matrix: niters × length(rperiods)
+4. For each iteration i:
+   a. Resample data with replacement
+   b. Fit distribution to sample
+   c. Compute quantiles for all return periods
+   d. Store in matrix row i
+5. For each return period:
+   a. Extract column (all iterations)
+   b. Compute α/2 and 1-α/2 percentiles
+   c. Return as lower/upper bounds
+```
+
+**Parallel Execution** (disabled):
+- Originally supported parallel processing
+- Removed due to stability concerns and minimal speed gain
+- Now hardcoded to series execution: `parallel = FALSE`
+
+### Comparison Tool Implementation
+
+**Model Comparison Logic**:
+```r
+observeEvent(input$run_comparison, {
+  selected_dists <- input$compare_distributions
+  method <- input$comparison_method
+  
+  results <- lapply(selected_dists, function(d) {
+    fit <- run_eva_analysis(data, d, method, rperiods)
+    return(fit)
+  })
+  
+  rv$comparison_results <- results
+  # Triggers comparison plot and table renders
+})
+```
+
+**Comparison Plot**:
+- Base layer: Empirical data points
+- Loop through distributions:
+  * Add fitted line with unique color
+  * Add to legend
+- Automatic color palette from `ggplot2`
+- Distinguishable line types if many distributions
+
+**Quantile Table**:
+- Rows: Return periods
+- Columns: Distributions
+- Values: Fitted quantiles
+- Facilitates direct numerical comparison
+
+## COMMON WORKFLOWS
+
+### Workflow 1: Basic EVA Analysis
+1. Upload data file or paste values
+2. Check/uncheck "Handle zero values"
+3. Go to "Fitting Tool" tab
+4. Select distribution (e.g., GEV) and method (e.g., L-moments)
+5. Click "Run Analysis"
+6. Review fitted parameters and GOF tests
+7. Examine probability plot
+8. Download Excel report
+
+### Workflow 2: Uncertainty Quantification
+1. Complete basic analysis (Workflow 1)
+2. Set confidence level (e.g., 0.95)
+3. Set bootstrap iterations (e.g., 1000)
+4. Click "Compute Confidence Intervals"
+5. Wait for computation (progress modal)
+6. Observe confidence bands on plot
+7. Download report with CI bounds
+
+### Workflow 3: Model Selection
+1. Upload data
+2. Go to "Model Comparison" tab
+3. Select multiple distributions (e.g., GEV, Gumbel, Lognormal)
+4. Select fitting method (L-moments)
+5. Click "Run Comparison"
+6. Compare GOF statistics
+7. Examine overlay plot
+8. Review quantile differences
+9. Select best model based on GOF and visual fit
+
+### Workflow 4: Method Sensitivity Analysis
+1. Upload data
+2. Go to "Method Comparison" tab
+3. Select distribution (e.g., GEV)
+4. Select all methods (L-moments, MLE, Method of Moments)
+5. Click "Run Comparison"
+6. Compare parameter estimates
+7. Examine differences in quantile predictions
+8. Assess estimation uncertainty
+
+### Workflow 5: Custom Parameter Tuning
+1. Complete basic analysis
+2. Review initial parameters
+3. Scroll to "Manual Parameter Adjustment"
+4. Modify parameter values (e.g., increase shape parameter)
+5. Click "Recompute with Manual Parameters"
+6. Observe updated plot
+7. Iterate until satisfactory fit
+8. Download customized report
+
+## DEBUGGING AND COMMON ISSUES
+
+### Issue 1: Missing Packages
+**Symptom**: Error about missing function or package
+**Solution**: Install required packages
+```r
+install.packages(c("shiny", "shinythemes", "DT", "ggplot2", 
+                   "openxlsx", "tibble", "e1071", "lmomco",
+                   "MASS", "survival", "fitdistrplus", 
+                   "goftest", "scales"))
+```
+
+### Issue 2: Distribution Fitting Fails
+**Symptom**: Error in fit_probmodel or NA parameters
+**Causes**:
+- Insufficient data (n < 10 recommended minimum)
+- All values identical (no variance)
+- Data characteristics incompatible with distribution
+  * Negative values with Lognormal
+  * Zeros with Log-Pearson III
+**Solution**: Handle zeros, check data quality, try different distribution
+
+### Issue 3: Bootstrap Takes Too Long
+**Symptom**: Computation hangs or takes minutes
+**Causes**: 
+- High iteration count (>1000) with large dataset
+- Complex distribution (GEV with MLE)
+**Solution**: Reduce iterations, use L-moments instead of MLE
+
+### Issue 4: Plots Not Updating
+**Symptom**: Changes don't reflect in plots
+**Causes**:
+- Forgot to click "Run Analysis"
+- Reactivity break in code
+**Solution**: Click "Run Analysis" after changing settings
+
+### Issue 5: Excel Download Fails
+**Symptom**: Error or empty file
+**Causes**:
+- No results computed (rv$results is NULL)
+- Filename contains invalid characters
+**Solution**: 
+- Run analysis first
+- Data name sanitization handles special characters
+
+## DEVELOPMENT GUIDELINES
+
+### Code Style Conventions
+- Function names: snake_case (e.g., `fit_probmodel`)
+- Constants: lowercase with underscores (e.g., `probmodel_names`)
+- Comments: Doxygen-style with Args/Returns
+- Indentation: 2 spaces (R standard)
+- Line length: Aim for <80 characters
+
+### Adding a New Distribution
+
+**Step 1**: Add to `fit_utils.R`
+```r
+# Fitting function
+fit_newdist <- function(x, method = "lmme") {
+  # Implementation for each method
+  if (method == "lmme") { ... }
+  if (method == "mle") { ... }
+  return(c(param1 = ..., param2 = ...))
+}
+
+# Density function
+dnewdist <- function(x, param1, param2) { ... }
+
+# CDF function  
+pnewdist <- function(q, param1, param2) { ... }
+
+# Quantile function
+qnewdist <- function(p, param1, param2) { ... }
+```
+
+**Step 2**: Update global variables
+```r
+probmodel_names <- c(..., "newdist")
+probmodel_nparams <- list(..., newdist = 2)
+```
+
+**Step 3**: Add to dispatcher functions
+```r
+fit_probmodel <- function(x, distr, method) {
+  # Add case
+  if (distr == "newdist") return(fit_newdist(x, method))
+  # ...
+}
+```
+
+**Step 4**: Update UI choices
+```r
+# In app_ui.R, create_fitting_results_tab()
+selectInput("distribution", ...,
+  choices = c(..., "New Distribution" = "newdist"))
+```
+
+**Step 5**: Test thoroughly
+- Fit with all methods
+- Check GOF tests
+- Verify plots
+- Test bootstrap
+- Compare with other tools
+
+### Adding a New Plot
+
+**Step 1**: Create plot function in `app_plot_functions.R`
+```r
+create_newplot <- function(data, fitted_params, distribution, 
+                          method, data_name = NULL) {
+  # Build title
+  title_base <- paste("New Plot -", toupper(distribution))
+  title_text <- if (!is.null(data_name) && data_name != "") {
+    paste(data_name, "|", title_base)
+  } else {
+    title_base
+  }
+  
+  # Create ggplot
+  p <- ggplot(...) + 
+    labs(title = title_text) +
+    theme_minimal()
+  
+  return(p)
+}
+```
+
+**Step 2**: Add render output in `app.R`
+```r
+output$newplot <- renderPlot({
+  req(rv$results)
+  create_newplot(rv$data, rv$fitted_params, 
+                input$distribution, input$method,
+                data_name = input$data_name)
+})
+```
+
+**Step 3**: Add download handler
+```r
+output$download_newplot <- downloadHandler(
+  filename = function() {
+    # Sanitize and timestamp
+  },
+  content = function(file) {
+    ggsave(file, plot = create_newplot(...), 
+           width = 10, height = 8, dpi = 300)
+  }
+)
+```
+
+**Step 4**: Add to UI in `app_ui.R`
+```r
+# In appropriate tab
+plotOutput("newplot", height = "400px"),
+downloadButton("download_newplot", "Download Plot")
+```
+
+## DEPLOYMENT
+
+### Local Testing
+```r
+# In R console, from project directory
+shiny::runApp()
+# Or
+shiny::runApp(port = 3838)
+```
+
+### Shinyapps.io Deployment
+```r
+# Install rsconnect if needed
+install.packages("rsconnect")
+
+# Configure account (one-time)
+rsconnect::setAccountInfo(
+  name = "lucasglasner",
+  token = "<your-token>",
+  secret = "<your-secret>"
+)
+
+# Deploy
+rsconnect::deployApp(
+  appName = "hevawr",
+  account = "lucasglasner"
+)
+```
+
+**Deployed URL**: https://lucasglasner.shinyapps.io/hevawr
+
+### Server Deployment (Shiny Server)
+```bash
+# Install Shiny Server
+# Copy app files to /srv/shiny-server/hevawr/
+# Configure shiny-server.conf
+# Restart service
+sudo systemctl restart shiny-server
+```
+
+## PERFORMANCE CONSIDERATIONS
+
+### Optimization Tips
+1. **Lazy Loading**: Use `req()` to prevent unnecessary computations
+2. **Debouncing**: Consider `debounce()` for expensive reactive calculations
+3. **Caching**: Store intermediate results in reactiveValues
+4. **Series Bootstrap**: Parallel disabled for stability, but series is fast enough for typical use
+
+### Scalability Limits
+- **Data Size**: Tested up to 10,000 observations
+- **Bootstrap**: 1000 iterations typical max for interactive use
+- **Comparisons**: 3-5 distributions/methods recommended max
+
+### Memory Management
+- Shiny apps have memory limits on shinyapps.io (1GB free tier)
+- Bootstrap with high iterations can consume significant memory
+- Clear rv$ci_results when changing distributions to free memory
+
+## THEORETICAL BACKGROUND
+
+### Extreme Value Theory Basics
+
+**Core Concept**: Extreme values (maxima/minima) from distributions converge to 
+specific limiting distributions (Fisher-Tippett theorem).
+
+**GEV Distribution**: Unifies three extreme value types
+- ξ < 0: Weibull (bounded above)
+- ξ = 0: Gumbel (unbounded, light tails)  
+- ξ > 0: Fréchet (heavy tails)
+
+**Return Period Interpretation**:
+T = 100 years means:
+- Expected to occur once every 100 years on average
+- Annual exceedance probability = 1/100 = 0.01
+- 10% chance of occurring in any 10-year period
+
+### Distribution Selection Guidelines
+
+**Gumbel**: 
+- Light-tailed extremes
+- Exponential-type behavior
+- Common for maximum annual floods
+
+**GEV**:
+- Flexible shape parameter
+- Can model heavy or light tails
+- Recommended when tail behavior unknown
+
+**Log-Pearson III**:
+- USGS recommended for flood frequency
+- Log-transformation handles skewness
+- Three parameters for flexibility
+
+**Lognormal**:
+- Simple two-parameter distribution
+- Suitable for positively skewed data
+- Easy interpretation (geometric mean, CV)
+
+### Method Selection Guidelines
+
+**L-moments**:
+- **Pros**: Robust to outliers, works with small samples, no optimization needed
+- **Cons**: May be less efficient for large samples
+- **Use when**: Small datasets, outliers present, quick estimates needed
+
+**Maximum Likelihood**:
+- **Pros**: Asymptotically efficient, theoretical optimality
+- **Cons**: Sensitive to outliers, can fail to converge
+- **Use when**: Large clean datasets, optimal efficiency desired
+
+**Method of Moments**:
+- **Pros**: Simple, intuitive, closed-form solutions
+- **Cons**: Inefficient, sensitive to extreme values
+- **Use when**: Educational purposes, quick checks
+
+## VALIDATION AND QUALITY ASSURANCE
+
+### Testing Checklist
+- [ ] Upload sample data successfully
+- [ ] Fit all 7 distributions with all 3 methods
+- [ ] Verify GOF test results
+- [ ] Check quantile table accuracy
+- [ ] Test bootstrap CI computation
+- [ ] Verify Excel export completeness
+- [ ] Test plot downloads (all 5 plot types)
+- [ ] Run model comparison (3+ distributions)
+- [ ] Run method comparison (all 3 methods)
+- [ ] Test manual parameter adjustment
+- [ ] Verify synchronization between tabs
+- [ ] Test zero-handling toggle
+- [ ] Check data naming in all outputs
+
+### Known Limitations
+1. **No censored data support**: Only complete observations
+2. **Annual maxima only**: No peaks-over-threshold (POT) method
+3. **Stationary assumption**: No trend analysis or non-stationarity
+4. **Single-site analysis**: No regional frequency analysis
+5. **Limited distributions**: Missing some specialized EVA distributions
+
+### Future Enhancement Ideas
+- Add peaks-over-threshold (POT) analysis with GPD
+- Implement trend testing (Mann-Kendall, etc.)
+- Add regional frequency analysis tools
+- Support multivariate extreme value analysis
+- Integrate climate model downscaling
+- Add automatic distribution selection (AIC/BIC)
+- Implement Bayesian parameter estimation
+
+## REFERENCES AND RESOURCES
+
+### Key Literature
+1. **Hosking & Wallis (1997)**: Regional Frequency Analysis - L-moments foundation
+2. **Wilks (2011)**: Statistical Methods in Atmospheric Sciences - EVA overview
+3. **Delignette-Muller et al. (2025)**: fitdistrplus package documentation
+
+### R Package Documentation
+- `fitdistrplus`: https://cran.r-project.org/package=fitdistrplus
+- `lmomco`: https://cran.r-project.org/package=lmomco
+- `shiny`: https://shiny.rstudio.com/
+
+### Online Resources
+- USGS Bulletin 17C: Flood frequency guidelines
+- WMO Guide to Hydrological Practices
+- R-bloggers EVA tutorials
+
+## GLOSSARY
+
+**EVA**: Extreme Value Analysis - statistical analysis of extreme events
+
+**Return Period (T)**: Average recurrence interval for an event of given magnitude
+
+**Exceedance Probability (P)**: Probability that a value will be exceeded in a given year
+
+**Quantile**: Value below which a given percentage of observations fall
+
+**GOF**: Goodness-of-fit - statistical measure of distribution fit quality
+
+**Bootstrap**: Resampling method for estimating parameter uncertainty
+
+**L-moments**: Linear combinations of order statistics, robust parameter estimators
+
+**CDF**: Cumulative Distribution Function - P(X ≤ x)
+
+**PDF**: Probability Density Function - derivative of CDF
+
+**Q-Q Plot**: Quantile-Quantile plot - graphical GOF assessment
+
+**CI**: Confidence Interval - range likely to contain true parameter value
+
+---
+
+## QUICK START FOR LLMs
+
+**When asked to modify HEVAwR**:
+1. Identify which module(s) need changes (UI, server, fitting, plotting, etc.)
+2. Check current implementation in relevant .R file
+3. Maintain existing patterns and conventions
+4. Update all related components (e.g., if adding distribution, update UI choices + fit_utils + dispatchers)
+5. Preserve reactivity structure in app.R
+6. Test mental walkthrough of user interaction flow
+
+**Common modification requests**:
+- "Add new distribution" → See "Adding a New Distribution" section
+- "Change plot appearance" → Modify `app_plot_functions.R`
+- "Add UI control" → Update `app_ui.R` + add reactive handler in `app.R`
+- "Fix computation" → Check `fit_utils.R` or `test_utils.R`
+- "Export enhancement" → Modify `app_server_functions.R`
+
+**Architecture principle**: 
+Keep UI, business logic, and presentation separate. Changes should be localized to minimize side effects.
