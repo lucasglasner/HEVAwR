@@ -4,9 +4,21 @@ Hydrological Extreme Value Analysis with R (`HEVAwR`) is a project designed to f
 
 ---
 
+#### Dependencies
 
 
-Example
+```bash
+  "shiny", "shinythemes", "DT",
+  "fitdistrplus", "lmomco", "MASS", "e1071", "survival", "goftest",
+  "ggplot2", "scales", "openxlsx",
+  "tibble", "parallel"
+```
+
+---
+
+
+
+### Example
 
 Import libraries
 
