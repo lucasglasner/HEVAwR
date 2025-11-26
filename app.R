@@ -69,7 +69,7 @@ server <- function(input, output, session) {
       Index = 1:nrow(eva_table),
       Value = eva_table$data,
       `P(exc)` = round(eva_table$pexc, 3),
-      `T(years)` = round(eva_table$rperiod, 1),
+      `Return Period` = round(eva_table$rperiod, 1),
       check.names = FALSE
     )
     

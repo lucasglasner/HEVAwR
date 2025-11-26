@@ -58,7 +58,7 @@ create_prob_plot_rperiod <- function(eva_table,
     geom_line(aes(x = model_rperiods, y = model_quant),
               color = "red", linewidth = 1.0) +
     scale_x_log10() +
-    labs(x = "Return Period (years)",
+    labs(x = "Return Period",
          y = "Return Level",
          title = title_text) +
     get_plot_theme()
@@ -236,7 +236,7 @@ create_comparison_plot <- function(comparison_results, title_override = NULL) {
       labels = scales::trans_format("log10", scales::math_format(10^.x))
     ) +
     labs(
-      x = "Return Period (years)",
+      x = "Return Period",
       y = "Return Level",
       color = "Distribution"
     ) +
@@ -339,7 +339,7 @@ create_method_comparison_plot <- function(method_comparison_results, title_overr
       labels = scales::trans_format("log10", scales::math_format(10^.x))
     ) +
     labs(
-      x = "Return Period (years)",
+      x = "Return Period",
       y = "Return Level",
       color = "Method"
     ) +

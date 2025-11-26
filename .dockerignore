@@ -1,0 +1,14 @@
+.git
+.gitignore
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+rsconnect/
+.DS_Store
+Thumbs.db
+README.md
+LICENSE
+.vscode
+.idea
+*.log
