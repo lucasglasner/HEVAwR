@@ -3,7 +3,6 @@ library("lmomco")
 library("MASS")
 library("survival")
 library("fitdistrplus")
-library("parallel")
 
 # ----------------------------- GLOBAL VARIABLES ----------------------------- #
 probmodel_names <- c("norm", "lognorm", "gamma", "pearson3",
@@ -742,10 +741,9 @@ bootstrap_probmodel <- function(x,
                                  niters,
                                  distr,
                                  method,
-                                 parallel = FALSE,
+                                 type = "nonparametric",
                                  replace = TRUE,
                                  subsample = FALSE,
-                                 n_cores = NULL,
                                  seed = NULL,
                                  progress = FALSE,
                                  ...) {
@@ -762,26 +760,30 @@ bootstrap_probmodel <- function(x,
       distr, paste(probmodel_names, collapse = ", ")
     ))
   }
+  if (!type %in% c("nonparametric", "parametric")) {
+    stop("type must be either 'nonparametric' or 'parametric'")
+  }
   
   # Set seed for reproducibility if provided
   if (!is.null(seed)) {
     set.seed(seed)
   }
   
-  # Determine sample size
-  sample_size <- if (subsample) length(x) - 1 else length(x)
-  
   # Remove NA values
   x <- x[!is.na(x)]
+  n <- length(x)
   
-  if (parallel == FALSE) {
-    # Sequential execution
+  # Determine sample size
+  sample_size <- if (subsample) n - 1 else n
+  
+  # Optional progress bar
+  if (progress && requireNamespace("utils", quietly = TRUE)) {
+    pb <- txtProgressBar(min = 0, max = niters, style = 3)
+  }
+  
+  if (type == "nonparametric") {
+    # Non-parametric bootstrap: resample from original data
     params <- vector("list", niters)
-    
-    # Optional progress bar
-    if (progress && requireNamespace("utils", quietly = TRUE)) {
-      pb <- txtProgressBar(min = 0, max = niters, style = 3)
-    }
     
     for (i in seq_len(niters)) {
       xsample <- sample(x, size = sample_size, replace = replace)
@@ -796,68 +798,43 @@ bootstrap_probmodel <- function(x,
       }
     }
     
-    if (progress && exists("pb")) {
-      close(pb)
-    }
-  } else {
-    # Parallel execution
-    available_cores <- detectCores()
-    if (is.null(n_cores)) {
-      n_cores <- max(1, available_cores - 1)
-    }
+  } else if (type == "parametric") {
+    # Parametric bootstrap: fit original data, then draw from fitted distribution
+    # Get fitted parameters from original data
+    fitted_params <- fit_probmodel(x, distr = distr, method = method, ...)
     
-    # Validate n_cores
-    if (n_cores > available_cores) {
-      warning(sprintf(
-        "n_cores (%d) exceeds available cores (%d). Using %d.",
-        n_cores, available_cores, available_cores
-      ))
-      n_cores <- available_cores
-    }
+    params <- vector("list", niters)
     
-    # Set up cluster with error handling
-    cl <- tryCatch({
-      makeCluster(n_cores)
-    }, error = function(e) {
-      stop(sprintf("Failed to create cluster: %s", e$message))
-    })
-    
-    # Ensure cluster is stopped on function exit
-    on.exit(stopCluster(cl), add = TRUE)
-    
-    # Export necessary variables and functions
-    clusterExport(
-      cl,
-      varlist = c(
-        "x", "sample_size", "replace", "distr", "method"
-      ),
-      envir = environment()
-    )
-    
-    # Load required libraries and source files on each worker
-    clusterEvalQ(cl, {
-      library("e1071")
-      library("lmomco")
-      library("MASS")
-      library("survival")
-      library("fitdistrplus")
-      source("fit_utils.R")
-    })
-    
-    # Set seeds for parallel workers if seed is provided
-    if (!is.null(seed)) {
-      clusterSetRNGStream(cl, seed)
-    }
-    
-    # Perform parallel computation with error handling
-    params <- parLapply(cl, seq_len(niters), function(i, ...) {
-      xsample <- sample(x, size = sample_size, replace = replace)
-      tryCatch({
-        fit_probmodel(xsample, distr = distr, method = method, ...)
+    for (i in seq_len(niters)) {
+      # Draw random sample from fitted distribution
+      xsample <- tryCatch({
+        rprobmodel(sample_size, distr, fitted_params)
       }, error = function(e) {
-        rep(NA_real_, probmodel_nparams[[distr]])
+        return(NA)
       })
-    }, ...)
+      
+      # If random generation failed, skip this iteration
+      if (any(is.na(xsample))) {
+        params[[i]] <- rep(NA_real_, probmodel_nparams[[distr]])
+      } else {
+        # Fit the random sample, suppressing warnings during fitting
+        params[[i]] <- suppressWarnings(
+          tryCatch({
+            fit_probmodel(xsample, distr = distr, method = method, ...)
+          }, error = function(e) {
+            rep(NA_real_, probmodel_nparams[[distr]])
+          })
+        )
+      }
+      
+      if (progress && exists("pb")) {
+        setTxtProgressBar(pb, i)
+      }
+    }
+  }
+  
+  if (progress && exists("pb")) {
+    close(pb)
   }
   
   # Convert results to data frame

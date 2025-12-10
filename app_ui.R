@@ -139,20 +139,6 @@ create_fitting_results_tab <- function() {
           h4("Goodness-of-Fit Tests", style = "text-align: center;"),
           verbatimTextOutput("gof_tests"),
           hr(),
-          h4("Manual Parameter Adjustment", style = "text-align: center;"),
-          p("Adjust parameters manually and click 'Recompute' to update results",
-            style = "font-size: 0.9em; color: #666; text-align: center;"),
-          uiOutput("param_controls"),
-          div(
-            style = "text-align: center;",
-            actionButton(
-              "recompute",
-              "Recompute with Manual Parameters",
-              class = "btn-warning",
-              icon = icon("calculator")
-            )
-          ),
-          hr(),
           h4("Confidence Intervals", style = "text-align: center;"),
           p("Compute bootstrap confidence intervals for uncertainty quantification",
             style = "font-size: 0.9em; color: #666; text-align: center;"),
@@ -183,6 +169,22 @@ create_fitting_results_tab <- function() {
               icon = icon("chart-line")
             )
           ),
+          hr(),
+          h4("Manual Parameter Adjustment", style = "text-align: center;"),
+          p("Adjust a single parameter and click 'Recompute' to update others",
+            style = "font-size: 0.9em; color: #666; text-align: center;"),
+          p("(Other parameters will be refitted to maintain the statistical properties)",
+            style = "font-size: 0.85em; color: #888; text-align: center; font-style: italic;"),
+          uiOutput("param_controls"),
+          div(
+            style = "text-align: center;",
+            actionButton(
+              "recompute",
+              "Recompute with Manual Parameters",
+              class = "btn-warning",
+              icon = icon("calculator")
+            )
+          ),
           hr()
         )
       ),
@@ -194,30 +196,6 @@ create_fitting_results_tab <- function() {
               "download_prob_rperiod",
               "Download Plot",
               class = "btn-sm"
-            )
-          ),
-          column(3,
-            numericInput(
-              "ylim_min",
-              "Y-axis Min:",
-              value = NA,
-              step = 1
-            )
-          ),
-          column(3,
-            numericInput(
-              "ylim_max",
-              "Y-axis Max:",
-              value = NA,
-              step = 1
-            )
-          ),
-          column(3,
-            actionButton(
-              "reset_ylim",
-              "Auto Y-axis",
-              class = "btn-secondary btn-sm",
-              style = "margin-top: 25px;"
             )
           )
         ),
@@ -329,6 +307,10 @@ create_plots_tab <- function() {
         plotOutput("cdf_plot", height = "400px")
       )
     ),
+    br(),
+    hr(),
+    # Parameter distributions from bootstrap (if CI computed)
+    uiOutput("param_histograms_ui"),
     br(),
     hr()
   )

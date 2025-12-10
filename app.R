@@ -12,6 +12,7 @@ library(tibble)
 source("fit_utils.R")
 source("test_utils.R")
 source("global_utils.R")
+source("constrained_fit_utils.R")
 source("app_ui.R")
 source("app_server_functions.R")
 source("app_plot_functions.R")
@@ -232,21 +233,60 @@ server <- function(input, output, session) {
   
   output$param_controls <- renderUI({
     req(rv$fitted_params)
-    create_param_controls_ui(rv$fitted_params, input$distribution)
+    create_param_controls_ui(rv$fitted_params, input$distribution, rv$ci_results)
   })
   
   # Recompute using manual params.
   observeEvent(input$recompute, {
     req(rv$results)
     req(rv$fitted_params)
-    
-    # Keep CI results as reference - don't clear them
-    # CIs from fitted parameters serve as uncertainty bounds guide
+    req(rv$data)
     
     n_params <- length(rv$fitted_params)
     manual_params <- sapply(1:n_params, function(i) {
       input[[paste0("manual_param_", i)]]
     })
+    
+    # Calculate absolute differences
+    param_diffs <- abs(rv$fitted_params - manual_params)
+    
+    # Find parameter with largest change
+    max_diff_idx <- which.max(param_diffs)
+    max_diff <- param_diffs[max_diff_idx]
+    
+    # If the largest change is significant (> 1e-6), treat that as the "changed" parameter
+    # All other differences are assumed to be due to rounding
+    if (max_diff > 1e-6) {
+      fixed_idx <- max_diff_idx
+      fixed_value <- manual_params[fixed_idx]
+      
+      cat("Refitting with fixed_idx =", fixed_idx, "fixed_value =", fixed_value, "\n")
+      
+      # Refit with one parameter fixed
+      refitted_params <- refit_with_fixed_param(
+        x = rv$data,
+        distr = input$distribution,
+        method = input$method,
+        fixed_idx = fixed_idx,
+        fixed_value = fixed_value
+      )
+      
+      cat("Original params:", rv$fitted_params, "\n")
+      cat("Refitted params:", refitted_params, "\n")
+      
+      # Update manual params to refitted values
+      manual_params <- refitted_params
+      
+      # Update the UI input boxes to show refitted parameters
+      for (i in 1:n_params) {
+        decimals_i <- if (i <= 2) 2 else 3
+        updateNumericInput(session, paste0("manual_param_", i),
+                          value = round(manual_params[i], decimals_i))
+      }
+    }
+    
+    # Update fitted params for next iteration
+    rv$fitted_params <- manual_params
     
     rv$results <- recompute_with_manual_params(
       results = rv$results,
@@ -272,8 +312,7 @@ server <- function(input, output, session) {
         ci_level = input$ci_level,
         target_rperiods = input$target_rperiods,
         statistics = rv$results$statistics,
-        fix_zeros = input$handle_zeros,
-        parallel = FALSE
+        fix_zeros = input$handle_zeros
       )
       
       if (is.null(ci_results)) {
@@ -293,10 +332,96 @@ server <- function(input, output, session) {
     })
   })
   
-  # Reset custom ylim.
-  observeEvent(input$reset_ylim, {
-    updateNumericInput(session, "ylim_min", value = NA)
-    updateNumericInput(session, "ylim_max", value = NA)
+  # Render parameter distribution histograms for auxiliary plots
+  output$param_histograms_ui <- renderUI({
+    req(rv$ci_results)
+    req(rv$ci_results$bootstrap_params)
+    
+    bootstrap_params <- rv$ci_results$bootstrap_params
+    
+    if (ncol(bootstrap_params) == 0 || nrow(bootstrap_params) == 0) {
+      return(NULL)
+    }
+    
+    n_params <- ncol(bootstrap_params)
+    
+    # Create plot output IDs
+    plot_ids <- paste0("param_hist_", seq_len(n_params))
+    
+    # Create the UI with all plots
+    plot_outputs <- lapply(plot_ids, function(id) {
+      plotOutput(id, height = "300px")
+    })
+    
+    # Arrange in 2 columns
+    plot_ui <- if (n_params == 1) {
+      fluidRow(
+        column(6, plot_outputs[[1]])
+      )
+    } else if (n_params == 2) {
+      fluidRow(
+        column(6, plot_outputs[[1]]),
+        column(6, plot_outputs[[2]])
+      )
+    } else if (n_params == 3) {
+      tagList(
+        fluidRow(
+          column(6, plot_outputs[[1]]),
+          column(6, plot_outputs[[2]])
+        ),
+        fluidRow(
+          column(6, plot_outputs[[3]])
+        )
+      )
+    } else {
+      tagList(
+        lapply(seq(1, n_params, by = 2), function(i) {
+          plots <- list(plot_outputs[[i]])
+          if (i + 1 <= n_params) {
+            plots[[2]] <- plot_outputs[[i + 1]]
+          }
+          do.call(fluidRow, lapply(plots, function(p) column(6, p)))
+        })
+      )
+    }
+    
+    tagList(
+      h4("Parameter Distributions from Bootstrap", style = "text-align: center;"),
+      p("Histograms of parameter values from parametric resampling",
+        style = "font-size: 0.9em; color: #666; text-align: center;"),
+      plot_ui
+    )
+  })
+  
+  # Render individual parameter histograms
+  observe({
+    req(rv$ci_results)
+    req(rv$ci_results$bootstrap_params)
+    req(rv$results)
+    
+    bootstrap_params <- rv$ci_results$bootstrap_params
+    fitted_params <- rv$results$params
+    
+    if (ncol(bootstrap_params) == 0 || nrow(bootstrap_params) == 0) return()
+    
+    # Create histograms for each parameter
+    param_plots <- create_param_histograms(
+      bootstrap_params, 
+      input$aux_distribution,
+      fitted_params = fitted_params
+    )
+    
+    if (is.null(param_plots)) return()
+    
+    # Render each plot
+    for (i in seq_along(param_plots)) {
+      local({
+        local_i <- i
+        output[[paste0("param_hist_", local_i)]] <- renderPlot({
+          param_plots[[local_i]]
+        })
+      })
+    }
   })
   
   # Quantiles table and plot outputs.
@@ -363,11 +488,6 @@ server <- function(input, output, session) {
   
   output$prob_plot_rperiod <- renderPlot({
     req(rv$results)
-    # Prepare ylim vector if both values are provided
-    ylim_vec <- NULL
-    if (!is.na(input$ylim_min) && !is.na(input$ylim_max)) {
-      ylim_vec <- c(input$ylim_min, input$ylim_max)
-    }
     create_prob_plot_rperiod(
       eva_table = rv$results$eva_table,
       model_rperiods = as.numeric(rownames(rv$results$model_quant)),
@@ -376,10 +496,12 @@ server <- function(input, output, session) {
       metrics = rv$results$metrics,
       ci_results = rv$ci_results,
       method = rv$results$method,
-      ylim = ylim_vec,
-      data_name = input$data_name
+      data_name = input$data_name,
+      params = rv$results$params,
+      sample_stats = rv$results$statistics
     )
   })
+  
   
   output$prob_plot <- renderPlot({
     req(rv$results)

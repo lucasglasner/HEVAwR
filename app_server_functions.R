@@ -38,7 +38,8 @@ get_param_names <- function(distr) {
 
 # Numeric input controls for fitted parameters.
 create_param_controls_ui <- function(fitted_params,
-                                      distr) {
+                                      distr,
+                                      ci_results = NULL) {
   n_params <- length(fitted_params)
   param_names <- get_param_names(distr)
   
@@ -49,11 +50,24 @@ create_param_controls_ui <- function(fitted_params,
       decimals <- if (i <= 2) 2 else 3
       step_size <- if (i <= 2) 0.01 else 0.001
       
+      # Build CI text if available
+      ci_text <- NULL
+      if (!is.null(ci_results) && !is.null(ci_results$param_lower) && !is.null(ci_results$param_upper)) {
+        ci_lower <- round(ci_results$param_lower[i], decimals)
+        ci_upper <- round(ci_results$param_upper[i], decimals)
+        ci_text <- sprintf("(%.*f, %.*f)", decimals, ci_lower, decimals, ci_upper)
+      }
+      
       column(4,
-        numericInput(paste0("manual_param_", i), 
-                    param_names[i], 
-                    value = round(fitted_params[i], decimals),
-                    step = step_size)
+        div(
+          numericInput(paste0("manual_param_", i), 
+                      param_names[i], 
+                      value = round(fitted_params[i], decimals),
+                      step = step_size),
+          if (!is.null(ci_text)) {
+            p(ci_text, style = "font-size: 0.85em; color: #888; margin-top: -10px; text-align: center;")
+          }
+        )
       )
     })
   )
@@ -131,15 +145,14 @@ compute_bootstrap_ci <- function(data,
                                   ci_level,
                                   target_rperiods,
                                   statistics,
-                                  fix_zeros,
-                                  parallel = FALSE) {
-  # Run bootstrap
+                                  fix_zeros) {
+  # Run bootstrap with parametric resampling
   bootstrap_results <- bootstrap_probmodel(
     x = data,
     niters = n_bootstrap,
     distr = distr,
     method = method,
-    parallel = parallel,
+    type = "parametric",
     replace = TRUE,
     seed = 123,
     progress = FALSE
@@ -189,6 +202,15 @@ compute_bootstrap_ci <- function(data,
     target_quant_boot, 1, quantile,
     probs = 1 - alpha/2, na.rm = TRUE
   )
+  # Compute parameter confidence intervals
+  param_lower <- apply(
+    bootstrap_results, 2, quantile,
+    probs = alpha/2, na.rm = TRUE
+  )
+  param_upper <- apply(
+    bootstrap_results, 2, quantile,
+    probs = 1 - alpha/2, na.rm = TRUE
+  )
   # Return results
   list(
     model_rp = model_rp,
@@ -197,6 +219,9 @@ compute_bootstrap_ci <- function(data,
     target_rp = target_rp,
     target_lower = target_quant_lower,
     target_upper = target_quant_upper,
+    param_lower = param_lower,
+    param_upper = param_upper,
+    bootstrap_params = bootstrap_results,
     ci_level = ci_level
   )
 }

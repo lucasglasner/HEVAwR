@@ -4,13 +4,14 @@
 library(ggplot2)
 library(scales)
 
-# ==================== Plot Theme Configuration ==================== #
+# ==================== Main Plot Functions ==================== #
 
 # Consistent ggplot2 theme.
 get_plot_theme <- function(base_size = 16) {
   theme_minimal(base_size = base_size) +
     theme(
-      plot.title = element_text(hjust = 0.5, size = 18),
+      plot.title = element_text(hjust = 0.5, size = 12, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 9, margin = margin(b = 5)),
       axis.title = element_text(size = 16),
       axis.text = element_text(size = 14)
     )
@@ -19,21 +20,44 @@ get_plot_theme <- function(base_size = 16) {
 # ==================== Metrics Label Helper ==================== #
 
 # Metrics annotation label (n, R², RMSE, MBias, AIC, BIC).
-create_metrics_label <- function(metrics) {
+create_metrics_label <- function(metrics, distr = NULL, params = NULL) {
   n <- round(metrics["n", 1], 0)
   r2 <- round(metrics["r2", 1], 3)
   rmse <- round(metrics["rmse", 1], 3)
   mbias <- round(metrics["mbias", 1], 3)
-  aic <- round(metrics["aic", 1], 2)
-  bic <- round(metrics["bic", 1], 2)
-  paste0(
+  
+  label <- paste0(
     "n = ", n, "\n",
     "R² = ", r2, "\n",
     "RMSE = ", rmse, "\n",
-    "MBias = ", mbias, "\n",
-    "AIC = ", aic, "\n",
-    "BIC = ", bic
+    "MBias = ", mbias
   )
+  
+  # Add distribution parameters if provided
+  if (!is.null(params) && !is.null(distr)) {
+    param_names <- switch(distr,
+      "norm" = c("μ", "σ"),
+      "lognorm" = c("μ", "σ"),
+      "gamma" = c("α", "β"),
+      "pearson3" = c("μ", "σ", "γ"),
+      "logpearson3" = c("μ", "σ", "γ"),
+      "gumbel" = c("μ", "σ"),
+      "gev" = c("μ", "σ", "ξ"),
+      NULL
+    )
+    
+    if (!is.null(param_names)) {
+      params <- as.numeric(params)
+      for (i in seq_along(params)) {
+        if (i <= length(param_names)) {
+          dec <- if (i <= 2) 2 else 3
+          label <- paste0(label, "\n", param_names[i], " = ", sprintf("%.*f", dec, params[i]))
+        }
+      }
+    }
+  }
+  
+  label
 }
 
 # ==================== Main Plot Functions ==================== #
@@ -46,11 +70,14 @@ create_prob_plot_rperiod <- function(eva_table,
                                      metrics = NULL,
                                      ci_results = NULL,
                                      method = NULL,
-                                     ylim = NULL,
                                      data_name = NULL,
-                                     title_override = NULL) {
+                                     title_override = NULL,
+                                     params = NULL,
+                                     sample_stats = NULL) {
+  # Simple title
   title_text <- if (!is.null(title_override)) title_override else 
     build_plot_title("Probability Plot", distr, method, data_name)
+  
   p <- ggplot() +
     geom_point(data = eva_table,
                aes(x = rperiod, y = data),
@@ -63,13 +90,9 @@ create_prob_plot_rperiod <- function(eva_table,
          title = title_text) +
     get_plot_theme()
   
-  # Apply custom y-axis limits if provided
-  if (!is.null(ylim) && length(ylim) == 2 && !any(is.na(ylim))) {
-    p <- p + ylim(ylim[1], ylim[2])
-  }
   # Add metrics annotation if provided
   if (!is.null(metrics)) {
-    metrics_label <- create_metrics_label(metrics)
+    metrics_label <- create_metrics_label(metrics, distr = distr, params = params)
     p <- p + annotate(
       "text", x = Inf, y = -Inf,
       label = metrics_label,
@@ -97,6 +120,7 @@ create_prob_plot_rperiod <- function(eva_table,
         linewidth = 0.8
       )
   }
+  
   return(p)
 }
 
@@ -279,6 +303,88 @@ create_comparison_plot <- function(comparison_results, title_override = NULL) {
   }
   
   return(p)
+}
+
+# ==================== Parameter Distribution Histograms ==================== #
+
+# Create histograms of parameter distributions from bootstrap results
+create_param_histograms <- function(bootstrap_results, distr, fitted_params = NULL, param_names = NULL) {
+  if (is.null(bootstrap_results) || nrow(bootstrap_results) == 0) {
+    return(NULL)
+  }
+  
+  # Define parameter names for each distribution if not provided
+  if (is.null(param_names)) {
+    param_labels <- list(
+      norm = c("Mean (μ)", "Std Dev (σ)"),
+      lognorm = c("Mean log (μ)", "Std Dev log (σ)"),
+      gamma = c("Shape (α)", "Scale (β)"),
+      pearson3 = c("Mean", "Std Dev", "Skewness"),
+      logpearson3 = c("Mean log", "Std Dev log", "Skewness"),
+      gumbel = c("Location (μ)", "Scale (σ)"),
+      gev = c("Location (μ)", "Scale (σ)", "Shape (ξ)")
+    )
+    param_names <- param_labels[[distr]]
+  }
+  
+  n_params <- min(length(param_names), ncol(bootstrap_results))
+  
+  # Ensure fitted_params is a numeric vector
+  if (!is.null(fitted_params)) {
+    fitted_params <- as.numeric(fitted_params)
+  }
+  
+  # Create individual plots for each parameter
+  plots <- list()
+  
+  for (i in seq_len(n_params)) {
+    param_data <- bootstrap_results[[i]]
+    
+    # Remove NA values
+    param_data <- param_data[!is.na(param_data)]
+    
+    if (length(param_data) == 0) next
+    
+    # Create data frame for ggplot
+    df <- data.frame(value = param_data)
+    
+    # Get fitted parameter value for vertical line
+    fitted_val <- if (!is.null(fitted_params) && i <= length(fitted_params)) {
+      as.numeric(fitted_params[i])
+    } else {
+      NA_real_
+    }
+    
+    # Create histogram
+    p <- ggplot(df, aes(x = value)) +
+      geom_histogram(aes(y = after_stat(density)), 
+                     bins = 30, 
+                     fill = "#2E86AB", 
+                     color = "white", 
+                     alpha = 0.7)
+    
+    # Add vertical line for fitted parameter if available and valid
+    if (!is.na(fitted_val) && is.finite(fitted_val)) {
+      p <- p + geom_vline(xintercept = fitted_val, 
+                          color = "#E63946",
+                          linetype = "solid", size = 1.2)
+    }
+    
+    p <- p +
+      labs(
+        title = param_names[i],
+        x = param_names[i],
+        y = "Density"
+      ) +
+      get_plot_theme() +
+      theme(
+        plot.title = element_text(size = 12, face = "bold")
+      )
+    
+    plots[[i]] <- p
+  }
+  
+  return(plots)
 }
 
 # Compare fitting methods for one distribution.
