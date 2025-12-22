@@ -172,16 +172,23 @@ server <- function(input, output, session) {
     rv$ci_results <- NULL
     
     withProgress(message = 'Fitting distribution...', value = 0, {
-      rv$results <- run_eva_analysis(
-        data = rv$data,
-        method = input$method,
-        distr = input$distribution,
-        target_rperiods = input$target_rperiods,
-        fix_zeros = input$handle_zeros
-      )
-      
-      rv$fitted_params <- rv$results$params
-      rv$initial_params <- rv$results$params
+      tryCatch({
+        rv$results <- run_eva_analysis(
+          data = rv$data,
+          method = input$method,
+          distr = input$distribution,
+          target_rperiods = input$target_rperiods,
+          fix_zeros = input$handle_zeros
+        )
+        rv$fitted_params <- rv$results$params
+        rv$initial_params <- rv$results$params
+        showNotification("Fit completed successfully", type = "message", duration = 3)
+      }, error = function(e) {
+        rv$results <- NULL
+        rv$fitted_params <- NULL
+        rv$initial_params <- NULL
+        showNotification(paste("Fit failed:", e$message), type = "error", duration = 8)
+      })
     })
   })
   
@@ -192,16 +199,23 @@ server <- function(input, output, session) {
     rv$ci_results <- NULL
     
     withProgress(message = 'Fitting distribution...', value = 0, {
-      rv$results <- run_eva_analysis(
-        data = rv$data,
-        method = input$aux_method,
-        distr = input$aux_distribution,
-        target_rperiods = input$target_rperiods,
-        fix_zeros = input$handle_zeros
-      )
-      
-      rv$fitted_params <- rv$results$params
-      rv$initial_params <- rv$results$params
+      tryCatch({
+        rv$results <- run_eva_analysis(
+          data = rv$data,
+          method = input$aux_method,
+          distr = input$aux_distribution,
+          target_rperiods = input$target_rperiods,
+          fix_zeros = input$handle_zeros
+        )
+        rv$fitted_params <- rv$results$params
+        rv$initial_params <- rv$results$params
+        showNotification("Fit completed successfully", type = "message", duration = 3)
+      }, error = function(e) {
+        rv$results <- NULL
+        rv$fitted_params <- NULL
+        rv$initial_params <- NULL
+        showNotification(paste("Fit failed:", e$message), type = "error", duration = 8)
+      })
     })
   })
   

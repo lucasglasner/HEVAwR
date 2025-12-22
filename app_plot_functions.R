@@ -90,16 +90,24 @@ create_prob_plot_rperiod <- function(eva_table,
          title = title_text) +
     get_plot_theme()
   
-  # Add metrics annotation if provided
+  # Add metrics annotation if provided (place inside plot area to avoid clipping)
   if (!is.null(metrics)) {
     metrics_label <- create_metrics_label(metrics, distr = distr, params = params)
+    # Anchor text near lower-right data corner for consistent export/rendering
+    x_max <- max(model_rperiods, na.rm = TRUE)
+    y_min <- min(eva_table$data, na.rm = TRUE)
+    if (!is.null(ci_results)) {
+      y_min <- min(y_min, ci_results$model_lower, na.rm = TRUE)
+    }
     p <- p + annotate(
-      "text", x = Inf, y = -Inf,
+      "text", x = x_max, y = y_min,
       label = metrics_label,
-      hjust = 1.1, vjust = -0.1,
+      hjust = 1.02, vjust = 0,
       size = 5, family = "mono",
       fontface = "plain"
-    )
+    ) +
+      coord_cartesian(clip = "off") +
+      theme(plot.margin = margin(10, 10, 30, 10))
   }
   # Add confidence intervals if available
   if (!is.null(ci_results)) {
